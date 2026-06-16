@@ -222,16 +222,19 @@ async function loadEpg(streamId) {
   el.textContent = '';
   const my = ++epgReq;
   try {
-    const data = await xtreamApi('action=get_short_epg&stream_id=' + streamId + '&limit=2');
+    const data = await xtreamApi('action=get_short_epg&stream_id=' + streamId + '&limit=6');
     if (my !== epgReq) return; // une autre chaîne a été sélectionnée entre-temps
-    const list = (data && data.epg_listings) || [];
-    if (!list.length) return;
-    const now = decodeEpg(list[0].title);
-    const next = list[1] ? decodeEpg(list[1].title) : '';
-    const t = (s) => { const d = new Date((Number(s) || 0) * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
-    let txt = now ? `🔴 ${now}` : '';
-    if (list[0].start_timestamp) txt = `🔴 ${t(list[0].start_timestamp)} ${now}`;
-    if (next) txt += `   ·   ⏭ ${next}`;
+    const items = (((data && data.epg_listings) || [])
+      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
+      .filter((p) => p.title && p.st)
+      .sort((a, b) => a.st - b.st));
+    if (!items.length) return;
+    const now = Date.now() / 1000;
+    const t = (s) => { const d = new Date(s * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+    const cur = items.find((p) => p.st <= now && now < p.en);
+    const nxt = items.find((p) => p.st > now);
+    let txt = cur ? `🔴 ${t(cur.st)} ${cur.title}` : '';
+    if (nxt) txt += `${txt ? '   ·   ' : ''}⏭ ${t(nxt.st)} ${nxt.title}`;
     el.textContent = txt;
   } catch { /* EPG indisponible : on ignore */ }
 }
@@ -292,17 +295,25 @@ async function fillEpgRow(c, li) {
   const bar = li.querySelector('.epg-bar');
   const fill = li.querySelector('.epg-bar i');
   try {
-    const data = await xtreamApi('action=get_short_epg&stream_id=' + c.stream_id + '&limit=2');
-    const l = (data && data.epg_listings) || [];
-    if (!l.length) { nowEl.textContent = 'Pas de programme'; nowEl.classList.add('muted'); bar.style.display = 'none'; return; }
-    const t = (s) => { const d = new Date((Number(s) || 0) * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
-    const st = Number(l[0].start_timestamp) || 0, en = Number(l[0].stop_timestamp) || 0;
-    nowEl.textContent = `${t(st)} ${decodeEpg(l[0].title)}`;
-    if (l[1]) nextEl.textContent = `⏭ ${t(l[1].start_timestamp)} ${decodeEpg(l[1].title)}`;
-    // progression
+    const data = await xtreamApi('action=get_short_epg&stream_id=' + c.stream_id + '&limit=6');
+    const items = (((data && data.epg_listings) || [])
+      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
+      .filter((p) => p.title && p.st)
+      .sort((a, b) => a.st - b.st));
+    if (!items.length) { nowEl.textContent = 'Pas de programme'; nowEl.classList.add('muted'); bar.style.display = 'none'; return; }
     const now = Date.now() / 1000;
-    if (en > st && now >= st && now <= en) { fill.style.width = Math.round(((now - st) / (en - st)) * 100) + '%'; }
-    else { bar.style.display = 'none'; }
+    const t = (s) => { const d = new Date(s * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+    const cur = items.find((p) => p.st <= now && now < p.en);
+    const nxt = items.find((p) => p.st > now);   // 1er programme à venir
+
+    if (cur) {
+      nowEl.textContent = `${t(cur.st)} ${cur.title}`;
+      if (cur.en > cur.st) { fill.style.width = Math.round(((now - cur.st) / (cur.en - cur.st)) * 100) + '%'; }
+      else bar.style.display = 'none';
+    } else {
+      nowEl.textContent = 'Hors programme'; nowEl.classList.add('muted'); bar.style.display = 'none';
+    }
+    nextEl.textContent = nxt ? `⏭ ${t(nxt.st)} ${nxt.title}` : '';
   } catch {
     nowEl.textContent = 'EPG indisponible'; nowEl.classList.add('muted'); bar.style.display = 'none';
   }
