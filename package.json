@@ -1,0 +1,50 @@
+{
+  "name": "iptv-live",
+  "version": "1.0.0",
+  "description": "Simple Xtream live TV player with recording",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "node build-portable.js",
+    "build:win": "node build-portable.js win32 x64",
+    "build:mac": "node build-portable.js darwin arm64"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "hls.js": "^1.5.17",
+    "mpegts.js": "^1.7.3"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.0.1",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.b3g.iptvlive",
+    "productName": "IPTV Live",
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "node_modules/hls.js/dist/hls.min.js",
+      "node_modules/mpegts.js/dist/mpegts.js"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.entertainment"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "artifactName": "IPTV-Live-portable.exe"
+    }
+  }
+}

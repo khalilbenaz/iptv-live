@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; media-src * blob: data:; connect-src *; img-src * data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>IPTV Live</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login" class="login">
+    <div class="login-card">
+      <h1>IPTV Live</h1>
+      <p class="sub">Connexion Xtream Codes</p>
+      <input id="srv" type="text" placeholder="http://serveur:port" autocomplete="off" />
+      <input id="usr" type="text" placeholder="Utilisateur" autocomplete="off" />
+      <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="off" />
+      <button id="connectBtn">Se connecter</button>
+      <div id="loginMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-head">
+        <input id="search" type="text" placeholder="Rechercher une chaîne…" />
+      </div>
+      <select id="catSelect"></select>
+      <select id="qualSelect">
+        <option value="">Toutes qualités</option>
+        <option value="8K">8K</option>
+        <option value="4K">4K / UHD</option>
+        <option value="FHD">FHD (1080p)</option>
+        <option value="HD">HD (720p)</option>
+        <option value="SD">SD</option>
+      </select>
+      <ul id="channels" class="channels"></ul>
+      <div class="side-foot">
+        <button id="infoBtn" class="ghost">ℹ️ Infos</button>
+        <button id="recFolderBtn" class="ghost">📁 Enreg.</button>
+        <button id="logoutBtn" class="ghost">Quitter</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="player-wrap">
+        <button id="toggleSidebar" class="toggle" title="Réduire / afficher la liste">⟨</button>
+        <video id="video" controls autoplay playsinline></video>
+        <div id="overlay" class="overlay">Sélectionnez une chaîne</div>
+      </div>
+      <div class="bar">
+        <div class="now">
+          <span id="nowTitle">—</span>
+          <span id="recDot" class="rec-dot hidden">● REC <span id="recTime"></span></span>
+        </div>
+        <div class="actions">
+          <button id="relayBtn" disabled>📡 Restreamer</button>
+          <button id="recBtn" disabled>⏺ Enregistrer</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL RESTREAM -->
+  <div id="relayModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>📡 Restream actif</h2>
+        <button id="relayClose" class="modal-x">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">Une seule connexion est utilisée. Ouvrez ce lien sur vos autres appareils (même réseau Wi-Fi) — VLC, navigateur, TV. <b>Tous doivent regarder la même chaîne.</b></p>
+        <div class="row"><span class="k">Chaîne</span><span class="v" id="relayName">—</span></div>
+        <div class="row"><span class="k">Lien réseau (LAN)</span><span class="v" id="relayLan">—</span></div>
+        <button id="relayCopy" class="copy">Copier le lien LAN</button>
+
+        <div class="tunnel-box">
+          <p class="hint" style="margin:14px 0 8px;">🌍 <b>Hors du LAN</b> : crée une URL publique HTTPS (Cloudflare, gratuit). Accessible partout — <b>ne partage ce lien qu'avec des gens de confiance</b>.</p>
+          <button id="tunnelBtn" class="ghost" style="width:100%;">🌍 Créer un lien public</button>
+          <div id="tunnelResult" class="hidden">
+            <div class="row"><span class="k">Lien public</span><span class="v" id="tunnelUrl">—</span></div>
+            <button id="tunnelCopy" class="copy">Copier le lien public</button>
+          </div>
+          <div id="tunnelStatus" class="hint" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL INFOS IPTV -->
+  <div id="infoModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Détails de l'abonnement</h2>
+        <button id="infoClose" class="modal-x">✕</button>
+      </div>
+      <div id="infoBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="node_modules/hls.js/dist/hls.min.js"></script>
+  <script src="node_modules/mpegts.js/dist/mpegts.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
