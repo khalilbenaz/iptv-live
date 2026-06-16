@@ -1,6 +1,6 @@
 {
   "name": "iptv-live",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Simple Xtream live TV player with recording",
   "main": "main.js",
   "scripts": {
@@ -41,7 +41,8 @@
     ],
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.entertainment"
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.icns"
     },
     "win": {
       "target": "portable"

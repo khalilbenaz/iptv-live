@@ -257,6 +257,10 @@ input, button, select {
 .rec-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
 .rec-pager .ghost { padding: 6px 14px; font-size: 16px; line-height: 1; }
 .rec-pageinfo { color: var(--muted); font-size: 12px; min-width: 160px; text-align: center; }
+.rec-actions .danger:hover { color: var(--rec, #ff3b5c); border-color: var(--rec, #ff3b5c); }
+.rec-foot { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
+.rec-foot .ghost { flex: 1; padding: 11px; }
+.rec-foot .copy { flex: 1; }
 #relayBtn.live { background: var(--panel2); border: 1px solid #4dd080; color: #4dd080; }
 #relayBtn { background: var(--panel2); border: 1px solid var(--line); color: var(--txt); border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600; }
 #relayBtn:disabled { opacity: 0.4; cursor: default; }

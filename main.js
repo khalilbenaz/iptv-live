@@ -103,6 +103,26 @@ ipcMain.handle('open-recordings-dir', () => {
   shell.openPath(recordingsDir());
 });
 
+// Lit la durée (secondes) depuis l'atome mvhd d'un MP4, sans lancer ffmpeg.
+// Fiable sur nos fichiers finalisés/exportés (+faststart => moov au début).
+function mp4DurationSec(file) {
+  try {
+    const fd = fs.openSync(file, 'r');
+    const len = Math.min(fs.fstatSync(fd).size, 4 * 1024 * 1024); // 4 Mo suffisent (faststart)
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, 0);
+    fs.closeSync(fd);
+    const i = buf.indexOf('mvhd');
+    if (i < 0) return null;
+    const ver = buf[i + 4];
+    let ts, dur;
+    if (ver === 1) { ts = buf.readUInt32BE(i + 4 + 16); dur = Number(buf.readBigUInt64BE(i + 4 + 20)); }
+    else { ts = buf.readUInt32BE(i + 4 + 12); dur = buf.readUInt32BE(i + 4 + 16); }
+    if (!ts) return null;
+    return dur / ts;
+  } catch { return null; }
+}
+
 // Liste les enregistrements locaux (vidéos du dossier), récents d'abord.
 ipcMain.handle('list-recordings', () => {
   const dir = recordingsDir();
@@ -120,6 +140,7 @@ ipcMain.handle('list-recordings', () => {
           path: full,
           size: st.size || 0,
           mtime: st.mtimeMs || 0,
+          duration: mp4DurationSec(full),
           isWhatsapp: /_whatsapp\.mp4$/i.test(f),
         };
       })
@@ -130,6 +151,16 @@ ipcMain.handle('list-recordings', () => {
 
 ipcMain.handle('reveal-file', (e, { file }) => { if (file) shell.showItemInFolder(file); return { ok: true }; });
 ipcMain.handle('open-file', async (e, { file }) => { const err = file ? await shell.openPath(file) : 'no file'; return { ok: !err, error: err || undefined }; });
+
+ipcMain.handle('delete-recording', async (e, { file }) => {
+  // sécurité : ne supprime que dans le dossier d'enregistrement
+  try {
+    const dir = recordingsDir();
+    if (!file || path.dirname(file) !== dir) return { ok: false, error: 'hors dossier' };
+    fs.unlinkSync(file);
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
 
 // Ré-encode un enregistrement en MP4 compatible WhatsApp (H264 main + AAC-LC + 30 fps).
 // Les flux IPTV sont souvent en HE-AAC / 50 fps, que le transcodeur WhatsApp gère mal

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   listRecordings: () => ipcRenderer.invoke('list-recordings'),
   revealFile: (file) => ipcRenderer.invoke('reveal-file', { file }),
   openFile: (file) => ipcRenderer.invoke('open-file', { file }),
+  deleteRecording: (file) => ipcRenderer.invoke('delete-recording', { file }),
   recordStart: (url, name) => ipcRenderer.invoke('record-start', { url, name }),
   recordStop: (id) => ipcRenderer.invoke('record-stop', { id }),
   recordList: () => ipcRenderer.invoke('record-list'),

@@ -422,6 +422,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('recFolderBtn').onclick = openRecModal;
   $('recModalClose').onclick = () => $('recModal').classList.add('hidden');
   $('recOpenFolder').onclick = () => window.api.openRecordingsDir();
+  $('recExportAll').onclick = exportAllWhatsapp;
   $('recFilter').onchange = (e) => { recView.channel = e.target.value; recView.page = 1; renderRecPage(); };
   $('recSearch').addEventListener('input', (e) => { recView.q = e.target.value; recView.page = 1; renderRecPage(); });
   $('toggleSidebar').onclick = () => $('app').classList.toggle('collapsed');
@@ -565,15 +566,24 @@ function renderRecPage() {
   pager.append(prevB, label, nextB);
 }
 
+function fmtDuration(sec) {
+  if (sec == null || !isFinite(sec)) return '';
+  const s = Math.round(sec);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  const mm = String(m).padStart(2, '0'), sss = String(ss).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${sss}` : `${m}:${sss}`;
+}
+
 function recRow(f) {
   const mb = (f.size / 1048576).toFixed(1);
   const d = new Date(f.mtime);
   const date = isNaN(d.getTime()) ? '' : d.toLocaleString();
+  const dur = fmtDuration(f.duration);
   const li = document.createElement('li');
   li.className = 'rec-item';
   li.innerHTML =
     `<div class="rec-meta"><span class="rec-name">${f.isWhatsapp ? '📱 ' : ''}${escapeHtml(f.name)}</span>` +
-    `<span class="rec-sub">${mb} Mo · ${date}</span></div>`;
+    `<span class="rec-sub">${dur ? '⏱ ' + dur + ' · ' : ''}${mb} Mo · ${date}</span></div>`;
   const actions = document.createElement('div');
   actions.className = 'rec-actions';
 
@@ -594,6 +604,33 @@ function recRow(f) {
   revB.onclick = () => window.api.revealFile(f.path);
   actions.appendChild(revB);
 
+  const delB = document.createElement('button');
+  delB.className = 'ghost danger'; delB.textContent = '🗑'; delB.title = 'Supprimer';
+  delB.onclick = async () => {
+    if (!confirm('Supprimer définitivement :\n\n' + f.name + ' ?')) return;
+    const r = await window.api.deleteRecording(f.path);
+    if (r && r.ok) loadRecordings();
+    else alert('Suppression impossible : ' + ((r && r.error) || 'inconnu'));
+  };
+  actions.appendChild(delB);
+
   li.appendChild(actions);
   return li;
+}
+
+// Convertit tous les fichiers filtrés (non déjà WhatsApp) à la suite
+async function exportAllWhatsapp() {
+  const targets = filteredRecordings().filter((f) => !f.isWhatsapp);
+  if (!targets.length) { alert('Rien à convertir (déjà fait ou aucun fichier).'); return; }
+  if (!confirm(`Convertir ${targets.length} fichier(s) pour WhatsApp ?\nCela peut prendre un moment.`)) return;
+  const btn = $('recExportAll');
+  const old = btn.textContent; btn.disabled = true;
+  let done = 0;
+  for (const f of targets) {
+    btn.textContent = `📱 Conversion ${++done}/${targets.length}…`;
+    try { await window.api.exportWhatsapp(f.path); } catch {}
+  }
+  btn.textContent = '✓ Terminé'; btn.disabled = false;
+  await loadRecordings();
+  setTimeout(() => { btn.textContent = old; }, 2500);
 }

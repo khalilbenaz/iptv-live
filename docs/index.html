@@ -8,7 +8,8 @@
   <meta property="og:title" content="IPTV Live" />
   <meta property="og:description" content="Lecteur Xtream live TV avec enregistrement, restream et export WhatsApp — pour macOS." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>" />
+  <link rel="icon" href="icon.png" />
+  <meta property="og:image" content="https://khalilbenaz.github.io/iptv-live/icon.png" />
   <style>
     :root {
       --bg: #0b0d12; --panel: #141821; --panel2: #1c2130; --line: #262c3a;
@@ -22,7 +23,7 @@
     }
     .wrap { max-width: 960px; margin: 0 auto; padding: 0 22px; }
     header { text-align: center; padding: 80px 0 50px; }
-    .logo { font-size: 64px; }
+    .logo-img { width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
     h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin: 12px 0 6px; letter-spacing: -.02em; }
     .tagline { color: var(--muted); font-size: clamp(1rem, 3vw, 1.25rem); margin: 0 auto 30px; max-width: 620px; }
     .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff;
@@ -54,7 +55,7 @@
 <body>
   <header>
     <div class="wrap">
-      <div class="logo">📺</div>
+      <img class="logo-img" src="icon.png" alt="IPTV Live" width="128" height="128" />
       <h1>IPTV Live</h1>
       <p class="tagline">Lecteur Xtream Codes pour macOS — regarde, enregistre, restreame et partage tes chaînes en direct.</p>
       <span class="badge">macOS · Apple Silicon (arm64)</span><br>
