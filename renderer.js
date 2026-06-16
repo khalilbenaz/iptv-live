@@ -93,6 +93,10 @@ async function connect() {
     }
     state.info = info;
     localStorage.setItem('xtream', JSON.stringify({ srv: s, usr, pwd }));
+    // EPG du fournisseur (xmltv.php) en source prioritaire pour le secours EPG
+    try {
+      window.api.setProviderEpg(`${apiBase()}/xmltv.php?username=${encodeURIComponent(usr)}&password=${encodeURIComponent(pwd)}`);
+    } catch {}
     await loadCategories();
     $('login').classList.add('hidden');
     $('app').classList.remove('hidden');

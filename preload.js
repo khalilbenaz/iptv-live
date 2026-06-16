@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   onMainError: (cb) => ipcRenderer.on('main-error', (_e, d) => cb(d)),
   checkUpdate: () => ipcRenderer.invoke('check-update'),
   epgLookup: (name) => ipcRenderer.invoke('epg-lookup', { name }),
+  setProviderEpg: (url) => ipcRenderer.invoke('set-provider-epg', { url }),
   xmltvStatus: () => ipcRenderer.invoke('xmltv-status'),
   xmltvConfig: (cfg) => ipcRenderer.invoke('xmltv-config', cfg)
 });

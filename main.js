@@ -120,6 +120,7 @@ const XMLTV_DEFAULT = [
   'https://epgshare01.online/epgshare01/epg_ripper_AR1.xml.gz',
 ];
 const xmltv = { index: new Map(), loadedAt: 0, loading: null };
+let providerEpgUrl = '';   // EPG complet du fournisseur Xtream (xmltv.php), défini après connexion
 
 const SUP_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 const XMLTV_NOISE = new Set(['hd','fhd','uhd','sd','4k','8k','hevc','h265','h264','raw','backup','vip','multi','full','plus','digital','mono','stereo','english','french','arabic','arabe','ar','en','fr','tr','hq','channel','tv','live','d']);
@@ -190,7 +191,8 @@ function ensureXmltv() {
   if (getSettings().xmltvEnabled === false) return Promise.resolve();
   if (xmltv.index.size && Date.now() - xmltv.loadedAt < 6 * 3600 * 1000) return Promise.resolve();
   if (xmltv.loading) return xmltv.loading;
-  const sources = getSettings().xmltvSources || XMLTV_DEFAULT;
+  // l'EPG du fournisseur en priorité (couvre tes chaînes exactes), puis les sources publiques
+  const sources = [providerEpgUrl, ...(getSettings().xmltvSources || XMLTV_DEFAULT)].filter(Boolean);
   xmltv.loading = buildXmltv(sources)
     .then((idx) => { if (idx.size) { xmltv.index = idx; xmltv.loadedAt = Date.now(); } })
     .catch(() => {})
@@ -206,6 +208,14 @@ ipcMain.handle('epg-lookup', async (e, { name } = {}) => {
   const cur = pl.find((p) => p.st <= now && now < p.en) || null;
   const next = pl.find((p) => p.st > now) || null;
   return { cur, next };
+});
+ipcMain.handle('set-provider-epg', (e, { url } = {}) => {
+  if (url && url !== providerEpgUrl) {
+    providerEpgUrl = url;
+    xmltv.index = new Map(); xmltv.loadedAt = 0;   // forcera un rechargement incluant le fournisseur
+    if (getSettings().xmltvEnabled !== false) ensureXmltv();
+  }
+  return { ok: true };
 });
 ipcMain.handle('xmltv-status', () => ({
   enabled: getSettings().xmltvEnabled !== false,
