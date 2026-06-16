@@ -21,5 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   onTunnelStatus: (cb) => ipcRenderer.on('tunnel-status', (_e, d) => cb(d)),
   onTunnelStopped: (cb) => ipcRenderer.on('tunnel-stopped', (_e, d) => cb(d)),
   onMainError: (cb) => ipcRenderer.on('main-error', (_e, d) => cb(d)),
-  checkUpdate: () => ipcRenderer.invoke('check-update')
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  epgLookup: (name) => ipcRenderer.invoke('epg-lookup', { name }),
+  xmltvStatus: () => ipcRenderer.invoke('xmltv-status'),
+  xmltvConfig: (cfg) => ipcRenderer.invoke('xmltv-config', cfg)
 });

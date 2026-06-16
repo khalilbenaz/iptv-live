@@ -215,28 +215,41 @@ function decodeEpg(b64) {
   catch { try { return atob(b64 || ''); } catch { return ''; } }
 }
 
-// Récupère le programme en cours / suivant pour la chaîne et l'affiche dans la barre
+function epgTime(s) { const d = new Date((Number(s) || 0) * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+
+// EPG d'une chaîne : d'abord le fournisseur Xtream, sinon secours XMLTV externe.
+// Renvoie { cur:{title,st,en}|null, next:{title,st}|null, src } ou null.
+async function getChannelEpg(channel) {
+  try {
+    const data = await xtreamApi('action=get_short_epg&stream_id=' + channel.stream_id + '&limit=6');
+    const items = (((data && data.epg_listings) || [])
+      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
+      .filter((p) => p.title && p.st).sort((a, b) => a.st - b.st));
+    if (items.length) {
+      const now = Date.now() / 1000;
+      return { cur: items.find((p) => p.st <= now && now < p.en) || null, next: items.find((p) => p.st > now) || null, src: 'xtream' };
+    }
+  } catch {}
+  // secours XMLTV externe
+  try {
+    const r = await window.api.epgLookup(channel.name);
+    if (r && (r.cur || r.next)) return { cur: r.cur, next: r.next, src: 'xmltv' };
+  } catch {}
+  return null;
+}
+
+// Affiche l'EPG dans la barre du bas
 let epgReq = 0;
-async function loadEpg(streamId) {
+async function loadEpg(channel) {
   const el = $('nowEpg');
   el.textContent = '';
   const my = ++epgReq;
-  try {
-    const data = await xtreamApi('action=get_short_epg&stream_id=' + streamId + '&limit=6');
-    if (my !== epgReq) return; // une autre chaîne a été sélectionnée entre-temps
-    const items = (((data && data.epg_listings) || [])
-      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
-      .filter((p) => p.title && p.st)
-      .sort((a, b) => a.st - b.st));
-    if (!items.length) return;
-    const now = Date.now() / 1000;
-    const t = (s) => { const d = new Date(s * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
-    const cur = items.find((p) => p.st <= now && now < p.en);
-    const nxt = items.find((p) => p.st > now);
-    let txt = cur ? `🔴 ${t(cur.st)} ${cur.title}` : '';
-    if (nxt) txt += `${txt ? '   ·   ' : ''}⏭ ${t(nxt.st)} ${nxt.title}`;
-    el.textContent = txt;
-  } catch { /* EPG indisponible : on ignore */ }
+  const e = await getChannelEpg(channel);
+  if (my !== epgReq || !e) return;
+  let txt = e.cur ? `🔴 ${epgTime(e.cur.st)} ${e.cur.title}` : '';
+  if (e.next) txt += `${txt ? '   ·   ' : ''}⏭ ${epgTime(e.next.st)} ${e.next.title}`;
+  if (e.src === 'xmltv' && txt) txt += '   · (guide externe)';
+  el.textContent = txt;
 }
 
 /* ---------- Guide des programmes (grille EPG) ---------- */
@@ -294,35 +307,23 @@ async function fillEpgRow(c, li) {
   const nextEl = li.querySelector('.epg-next');
   const bar = li.querySelector('.epg-bar');
   const fill = li.querySelector('.epg-bar i');
-  try {
-    const data = await xtreamApi('action=get_short_epg&stream_id=' + c.stream_id + '&limit=6');
-    const items = (((data && data.epg_listings) || [])
-      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
-      .filter((p) => p.title && p.st)
-      .sort((a, b) => a.st - b.st));
-    if (!items.length) { nowEl.textContent = 'Pas de programme'; nowEl.classList.add('muted'); bar.style.display = 'none'; return; }
-    const now = Date.now() / 1000;
-    const t = (s) => { const d = new Date(s * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
-    const cur = items.find((p) => p.st <= now && now < p.en);
-    const nxt = items.find((p) => p.st > now);   // 1er programme à venir
-
-    if (cur) {
-      nowEl.textContent = `${t(cur.st)} ${cur.title}`;
-      if (cur.en > cur.st) { fill.style.width = Math.round(((now - cur.st) / (cur.en - cur.st)) * 100) + '%'; }
-      else bar.style.display = 'none';
-    } else {
-      nowEl.textContent = 'Hors programme'; nowEl.classList.add('muted'); bar.style.display = 'none';
-    }
-    nextEl.textContent = nxt ? `⏭ ${t(nxt.st)} ${nxt.title}` : '';
-  } catch {
-    nowEl.textContent = 'EPG indisponible'; nowEl.classList.add('muted'); bar.style.display = 'none';
+  const e = await getChannelEpg(c);
+  if (!e || (!e.cur && !e.next)) { nowEl.textContent = 'Pas de programme'; nowEl.classList.add('muted'); bar.style.display = 'none'; return; }
+  const now = Date.now() / 1000;
+  if (e.cur) {
+    nowEl.textContent = `${epgTime(e.cur.st)} ${e.cur.title}`;
+    if (e.cur.en > e.cur.st) fill.style.width = Math.round(((now - e.cur.st) / (e.cur.en - e.cur.st)) * 100) + '%';
+    else bar.style.display = 'none';
+  } else {
+    nowEl.textContent = 'Hors programme'; nowEl.classList.add('muted'); bar.style.display = 'none';
   }
+  nextEl.textContent = e.next ? `⏭ ${epgTime(e.next.st)} ${e.next.title}${e.src === 'xmltv' ? '  · guide externe' : ''}` : '';
 }
 
 function play(channel) {
   state.current = channel;
   $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
-  loadEpg(channel.stream_id);
+  loadEpg(channel);
   $('overlay').classList.add('hidden');
   $('recBtn').disabled = false;
   $('relayBtn').disabled = false;
@@ -538,13 +539,28 @@ async function showInfo() {
   ).join('') +
     `<div class="row"><span class="k">Dossier d'enregistrement</span><span class="v" id="recDirVal">${recDir}</span></div>` +
     `<button id="pickDirBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);">📁 Changer le dossier…</button>` +
-    `<button id="updBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);margin-top:8px;">🔄 Vérifier les mises à jour</button>`;
+    `<button id="updBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);margin-top:8px;">🔄 Vérifier les mises à jour</button>` +
+    `<div class="row" style="margin-top:6px;"><span class="k">EPG externe (guide de secours)</span><span class="v" id="xmltvVal">…</span></div>` +
+    `<button id="xmltvBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);">📡 Activer/désactiver l'EPG externe</button>`;
   $('pickDirBtn').onclick = async () => {
     const r = await window.api.pickRecordingsDir();
     if (r.error) { alert(r.error); return; }
     if (!r.canceled) $('recDirVal').textContent = r.dir;
   };
   $('updBtn').onclick = () => window.api.checkUpdate();
+  // statut EPG externe
+  const refreshXmltv = async () => {
+    try {
+      const s = await window.api.xmltvStatus();
+      $('xmltvVal').textContent = s.enabled ? (s.channels ? `activé · ${s.channels} chaînes` : 'activé · chargement…') : 'désactivé';
+    } catch { $('xmltvVal').textContent = '—'; }
+  };
+  refreshXmltv();
+  $('xmltvBtn').onclick = async () => {
+    const s = await window.api.xmltvStatus();
+    await window.api.xmltvConfig({ enabled: !s.enabled });
+    setTimeout(refreshXmltv, 800);
+  };
   $('infoModal').classList.remove('hidden');
 }
 

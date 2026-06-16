@@ -112,9 +112,122 @@ async function checkForUpdates(silent) {
 }
 ipcMain.handle('check-update', () => checkForUpdates(false));
 
+// ---------- EPG externe (XMLTV) : secours quand le fournisseur n'a pas d'EPG ----------
+const zlib = require('zlib');
+const XMLTV_DEFAULT = [
+  'https://epgshare01.online/epgshare01/epg_ripper_FR1.xml.gz',
+  'https://epgshare01.online/epgshare01/epg_ripper_BEIN1.xml.gz',
+  'https://epgshare01.online/epgshare01/epg_ripper_AR1.xml.gz',
+];
+const xmltv = { index: new Map(), loadedAt: 0, loading: null };
+
+function xmlNorm(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')      // accents
+    .toLowerCase()
+    .replace(/\b(fr|ar|en|tr|ma|us|uk)\s*\|/g, '')                    // préfixes "FR|"
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹ᴴᴰᵁᴷᶠˢᴾ]/g, '')                              // exposants unicode
+    .replace(/\b(4k|8k|uhd|fhd|hd|sd|hevc|h265|h264|raw|backup|vip|multi|full|plus)\b/g, '')
+    .replace(/[^a-z0-9]+/g, '');                                      // alphanum only
+}
+function decodeEntities(s) {
+  return String(s || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+function parseXmltvTs(s) { // "20260616120000 +0200"
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+-]\d{4}))?/.exec(s || '');
+  if (!m) return 0;
+  let t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  if (m[7]) { const sign = m[7][0] === '-' ? 1 : -1; t += sign * ((+m[7].slice(1, 3)) * 60 + (+m[7].slice(3, 5))) * 60000; }
+  return Math.floor(t / 1000);
+}
+function fetchBuf(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'IPTV-Live' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); return fetchBuf(r.headers.location).then(resolve, reject); }
+      if (r.statusCode !== 200) { reject(new Error('HTTP ' + r.statusCode)); return; }
+      const c = []; r.on('data', (d) => c.push(d)); r.on('end', () => resolve(Buffer.concat(c)));
+    }).on('error', reject);
+  });
+}
+async function buildXmltv(sources) {
+  const names = new Map();   // channelId -> [display-names]
+  const progs = new Map();   // channelId -> [{title,st,en}]
+  for (const url of sources) {
+    let xml;
+    try {
+      const buf = await fetchBuf(url);
+      xml = (/\.gz$/i.test(url) ? zlib.gunzipSync(buf) : buf).toString('utf8');
+    } catch { continue; }
+    let m;
+    const chRe = /<channel id="([^"]+)">([\s\S]*?)<\/channel>/g;
+    while ((m = chRe.exec(xml))) {
+      names.set(m[1], [...m[2].matchAll(/<display-name[^>]*>([^<]+)</g)].map((x) => decodeEntities(x[1])));
+    }
+    const pRe = /<programme\b([^>]*)>([\s\S]*?)<\/programme>/g;
+    while ((m = pRe.exec(xml))) {
+      const attrs = m[1];
+      const id = (/channel="([^"]+)"/.exec(attrs) || [])[1];
+      if (!id) continue;
+      const st = parseXmltvTs((/start="([^"]+)"/.exec(attrs) || [])[1]);
+      const en = parseXmltvTs((/stop="([^"]+)"/.exec(attrs) || [])[1]);
+      const tm = /<title[^>]*>([^<]*)</.exec(m[2]);
+      const title = tm ? decodeEntities(tm[1]).trim() : '';
+      if (!title || !st) continue;
+      if (!progs.has(id)) progs.set(id, []);
+      progs.get(id).push({ title, st, en });
+    }
+  }
+  const index = new Map();
+  for (const [id, nm] of names) {
+    const pl = progs.get(id);
+    if (!pl || !pl.length) continue;
+    pl.sort((a, b) => a.st - b.st);
+    for (const n of nm) { const k = xmlNorm(n); if (k && !index.has(k)) index.set(k, pl); }
+  }
+  return index;
+}
+function ensureXmltv() {
+  if (getSettings().xmltvEnabled === false) return Promise.resolve();
+  if (xmltv.index.size && Date.now() - xmltv.loadedAt < 6 * 3600 * 1000) return Promise.resolve();
+  if (xmltv.loading) return xmltv.loading;
+  const sources = getSettings().xmltvSources || XMLTV_DEFAULT;
+  xmltv.loading = buildXmltv(sources)
+    .then((idx) => { if (idx.size) { xmltv.index = idx; xmltv.loadedAt = Date.now(); } })
+    .catch(() => {})
+    .finally(() => { xmltv.loading = null; });
+  return xmltv.loading;
+}
+ipcMain.handle('epg-lookup', async (e, { name } = {}) => {
+  if (getSettings().xmltvEnabled === false) return null;
+  await ensureXmltv();
+  const pl = xmltv.index.get(xmlNorm(name));
+  if (!pl) return null;
+  const now = Date.now() / 1000;
+  const cur = pl.find((p) => p.st <= now && now < p.en) || null;
+  const next = pl.find((p) => p.st > now) || null;
+  return { cur, next };
+});
+ipcMain.handle('xmltv-status', () => ({
+  enabled: getSettings().xmltvEnabled !== false,
+  channels: xmltv.index.size,
+  loadedAt: xmltv.loadedAt,
+  sources: getSettings().xmltvSources || XMLTV_DEFAULT,
+}));
+ipcMain.handle('xmltv-config', (e, { enabled, sources } = {}) => {
+  const s = getSettings();
+  if (enabled !== undefined) s.xmltvEnabled = enabled;
+  if (Array.isArray(sources)) s.xmltvSources = sources.filter(Boolean);
+  saveSettings();
+  xmltv.index = new Map(); xmltv.loadedAt = 0;  // forcera un rechargement
+  if (s.xmltvEnabled !== false) ensureXmltv();
+  return { ok: true };
+});
+
 app.whenReady().then(() => {
   createWindow();
   setTimeout(() => checkForUpdates(true), 4000); // vérif discrète au démarrage
+  setTimeout(() => { try { ensureXmltv(); } catch {} }, 6000); // précharge l'EPG externe
 });
 app.on('window-all-closed', () => {
   // stop everything
