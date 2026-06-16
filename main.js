@@ -132,6 +132,9 @@ ipcMain.handle('record-start', async (e, { url, name }) => {
   const id = String(Date.now()) + Math.floor(Math.random() * 1000);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const file = path.join(recordingsDir(), `${sanitize(name)}_${stamp}.mp4`);
+  // On enregistre d'abord dans un .part fragmenté (résistant aux coupures),
+  // puis on le "finalise" en MP4 normal à l'arrêt (cf. finalizeRecording).
+  const part = file + '.part';
 
   // 1 seule connexion fournisseur : on s'assure que le relais local tourne,
   // puis on enregistre DEPUIS le HLS local (aucune connexion supplémentaire).
@@ -148,14 +151,14 @@ ipcMain.handle('record-start', async (e, { url, name }) => {
     '-c', 'copy',
     '-bsf:a', 'aac_adtstoasc',
     // MP4 fragmenté : chaque fragment est auto-suffisant, donc le fichier reste
-    // lisible (VLC, QuickTime) même si l'enregistrement est coupé brutalement.
+    // récupérable même si l'enregistrement est coupé brutalement.
     '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
     '-f', 'mp4',
-    '-y', file
+    '-y', part
   ];
 
   const proc = spawn(ffmpegPath, args);
-  recordings.set(id, { proc, file, name, startedRelay });
+  recordings.set(id, { proc, file, part, name, startedRelay });
 
   let errBuf = '';
   proc.on('error', (e) => { notifyError('ffmpeg (enregistrement) : ' + e.message); });
@@ -163,20 +166,55 @@ ipcMain.handle('record-start', async (e, { url, name }) => {
   proc.on('close', (code) => {
     const wasAuto = (recordings.get(id) || {}).startedRelay;
     recordings.delete(id);
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('record-stopped', { id, file, code, startedRelay: wasAuto, error: errBuf.slice(-500) });
-    }
+    // Finalise : remux du .part fragmenté -> MP4 normal (moov complet = bonne
+    // durée affichée dans le Finder/QuickTime et partage intégral).
+    finalizeRecording(part, file, (finalFile) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('record-stopped', { id, file: finalFile, code, startedRelay: wasAuto, error: errBuf.slice(-500) });
+      }
+    });
   });
 
   return { id, file, local: LOCAL_URL, startedRelay };
 });
 
+// Remux du fichier fragmenté (.part) en MP4 standard avec un moov complet :
+// corrige la durée (le Finder/le partage lisaient 00:02 sur le fragmenté).
+function finalizeRecording(part, file, done) {
+  try {
+    if (!fs.existsSync(part) || fs.statSync(part).size === 0) { done(file); return; }
+  } catch { done(file); return; }
+
+  const args = [
+    '-hide_banner', '-loglevel', 'error',
+    '-i', part,
+    '-c', 'copy',
+    '-movflags', '+faststart',
+    '-y', file,
+  ];
+  const ff = spawn(ffmpegPath, args);
+  ff.on('error', () => {
+    // échec du remux : on garde au moins le .part (lisible VLC) en le renommant
+    try { fs.renameSync(part, file); } catch {}
+    done(file);
+  });
+  ff.on('close', (code) => {
+    if (code === 0) {
+      try { fs.unlinkSync(part); } catch {}
+      done(file);
+    } else {
+      try { fs.renameSync(part, file); } catch {}
+      done(file);
+    }
+  });
+}
+
 ipcMain.handle('record-stop', (e, { id }) => {
   const rec = recordings.get(id);
   if (!rec) return { ok: false };
-  // graceful: send 'q' then kill fallback
+  // arrêt propre : 'q' pour finir le fragment en cours, SIGKILL en secours
   try { rec.proc.stdin.write('q'); } catch {}
-  setTimeout(() => { try { rec.proc.kill('SIGKILL'); } catch {} }, 1500);
+  setTimeout(() => { try { rec.proc.kill('SIGKILL'); } catch {} }, 3000);
   return { ok: true, file: rec.file };
 });
 
