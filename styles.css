@@ -136,6 +136,14 @@ input, button, select {
   flex: 0 0 auto;
 }
 .channels li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channels li > span:not(.badge) { flex: 1; }
+.fav-btn {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 17px; line-height: 1; flex: 0 0 auto; padding: 2px 4px; border-radius: 6px;
+}
+.fav-btn:hover, .fav-btn.on { color: #ffcf3a; }
+.channels li.active .fav-btn { color: rgba(255,255,255,.7); }
+.channels li.active .fav-btn.on { color: #fff; }
 .side-foot { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
 .ghost {
   flex: 1;
@@ -275,15 +283,18 @@ input, button, select {
   pointer-events: none;
 }
 .bar {
-  height: 56px;
+  min-height: 56px;
   background: var(--panel);
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: 8px 18px;
+  gap: 14px;
 }
-.now { display: flex; align-items: center; gap: 14px; font-weight: 600; }
+.now { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.now-line { display: flex; align-items: center; gap: 14px; font-weight: 600; }
+.now-epg { font-weight: 400; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-dot { color: var(--rec); font-size: 13px; font-weight: 700; animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
 #recBtn {

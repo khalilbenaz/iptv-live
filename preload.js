@@ -20,5 +20,6 @@ contextBridge.exposeInMainWorld('api', {
   tunnelStop: () => ipcRenderer.invoke('tunnel-stop'),
   onTunnelStatus: (cb) => ipcRenderer.on('tunnel-status', (_e, d) => cb(d)),
   onTunnelStopped: (cb) => ipcRenderer.on('tunnel-stopped', (_e, d) => cb(d)),
-  onMainError: (cb) => ipcRenderer.on('main-error', (_e, d) => cb(d))
+  onMainError: (cb) => ipcRenderer.on('main-error', (_e, d) => cb(d)),
+  checkUpdate: () => ipcRenderer.invoke('check-update')
 });

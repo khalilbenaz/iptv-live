@@ -67,7 +67,55 @@ function createWindow() {
   win.loadFile('index.html');
 }
 
-app.whenReady().then(createWindow);
+// ---------- Vérification de mise à jour (app non signée : on propose, on n'auto-installe pas) ----------
+const REPO = 'khalilbenaz/iptv-live';
+function cmpVer(a, b) {
+  const pa = String(a).replace(/^v/, '').split('.').map(Number);
+  const pb = String(b).replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((pa[i] || 0) > (pb[i] || 0)) return 1; if ((pa[i] || 0) < (pb[i] || 0)) return -1; }
+  return 0;
+}
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'IPTV-Live', 'Accept': 'application/vnd.github+json' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume(); return fetchJson(res.headers.location).then(resolve, reject);
+      }
+      let d = ''; res.on('data', (c) => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+    }).on('error', reject);
+  });
+}
+async function checkForUpdates(silent) {
+  try {
+    const rel = await fetchJson(`https://api.github.com/repos/${REPO}/releases/latest`);
+    const latest = rel.tag_name || '';
+    if (!latest) throw new Error('no tag');
+    if (cmpVer(latest, app.getVersion()) <= 0) {
+      if (!silent && win) dialog.showMessageBox(win, { type: 'info', message: 'IPTV Live est à jour', detail: 'Version ' + app.getVersion(), buttons: ['OK'] });
+      return;
+    }
+    const dmg = (rel.assets || []).find((a) => /\.dmg$/i.test(a.name));
+    const r = await dialog.showMessageBox(win, {
+      type: 'info',
+      message: `Nouvelle version disponible : ${latest}`,
+      detail: `Tu utilises la ${app.getVersion()}.\n\n${(rel.body || '').slice(0, 400)}`,
+      buttons: ['Télécharger', 'Plus tard'],
+      defaultId: 0, cancelId: 1,
+    });
+    if (r.response === 0) {
+      shell.openExternal(dmg ? dmg.browser_download_url : (rel.html_url || `https://github.com/${REPO}/releases/latest`));
+    }
+  } catch (e) {
+    if (!silent && win) dialog.showMessageBox(win, { type: 'warning', message: 'Vérification impossible', detail: e.message, buttons: ['OK'] });
+  }
+}
+ipcMain.handle('check-update', () => checkForUpdates(false));
+
+app.whenReady().then(() => {
+  createWindow();
+  setTimeout(() => checkForUpdates(true), 4000); // vérif discrète au démarrage
+});
 app.on('window-all-closed', () => {
   // stop everything
   for (const { proc } of recordings.values()) try { proc.kill('SIGKILL'); } catch {}

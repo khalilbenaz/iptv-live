@@ -25,8 +25,25 @@ const state = {
   recStartedRelay: false,
   relaying: false,
   relayLan: '',
-  tunnelUrl: ''
+  tunnelUrl: '',
+  favs: []          // chaînes favorites (objets {stream_id, name, stream_icon})
 };
+
+/* ---------- Favoris ---------- */
+function loadFavs() {
+  try { state.favs = JSON.parse(localStorage.getItem('iptv_favs') || '[]'); }
+  catch { state.favs = []; }
+}
+function saveFavs() { try { localStorage.setItem('iptv_favs', JSON.stringify(state.favs)); } catch {} }
+function isFav(id) { return state.favs.some((f) => f.stream_id == id); }
+function toggleFav(ch) {
+  if (isFav(ch.stream_id)) state.favs = state.favs.filter((f) => f.stream_id != ch.stream_id);
+  else state.favs.push({ stream_id: ch.stream_id, name: ch.name, stream_icon: ch.stream_icon || '', category_id: ch.category_id });
+  saveFavs();
+  // rafraîchit le compteur dans le sélecteur + la liste si on est sur Favoris
+  const opt = $('catSelect').querySelector('option[value="favs"]');
+  if (opt) opt.textContent = `★ Favoris (${state.favs.length})`;
+}
 
 /* ---------- Xtream API ---------- */
 function apiBase() { return state.srv.replace(/\/+$/, ''); }
@@ -92,6 +109,10 @@ async function loadCategories() {
   state.categories = (Array.isArray(cats) ? cats : []).filter(c => categoryAllowed(c.category_name));
   const sel = $('catSelect');
   sel.innerHTML = '';
+  const favOpt = document.createElement('option');
+  favOpt.value = 'favs';
+  favOpt.textContent = `★ Favoris (${state.favs.length})`;
+  sel.appendChild(favOpt);
   for (const c of state.categories) {
     const o = document.createElement('option');
     o.value = c.category_id;
@@ -106,6 +127,11 @@ async function loadCategories() {
 
 async function loadChannels(catId) {
   let list;
+  if (catId === 'favs') {
+    state.channels = state.favs;
+    renderChannels();
+    return;
+  }
   if (catId === 'all') {
     if (!state.allByCat['all']) {
       list = await xtreamApi('action=get_live_streams');
@@ -151,6 +177,19 @@ function renderChannels() {
       b.textContent = tier;
       li.appendChild(b);
     }
+    const star = document.createElement('button');
+    star.className = 'fav-btn' + (isFav(c.stream_id) ? ' on' : '');
+    star.textContent = isFav(c.stream_id) ? '★' : '☆';
+    star.title = 'Favori';
+    star.onclick = (ev) => {
+      ev.stopPropagation();
+      toggleFav(c);
+      const on = isFav(c.stream_id);
+      star.classList.toggle('on', on);
+      star.textContent = on ? '★' : '☆';
+      if ($('catSelect').value === 'favs') loadChannels('favs'); // retire de la liste
+    };
+    li.appendChild(star);
     li.onclick = () => play(c);
     frag.appendChild(li);
   }
@@ -170,9 +209,37 @@ function destroyPlayer() {
   try { v.pause(); v.removeAttribute('src'); v.load(); } catch {}
 }
 
+// Décode un texte EPG (base64 -> UTF-8)
+function decodeEpg(b64) {
+  try { return decodeURIComponent(escape(atob(b64 || ''))).trim(); }
+  catch { try { return atob(b64 || ''); } catch { return ''; } }
+}
+
+// Récupère le programme en cours / suivant pour la chaîne et l'affiche dans la barre
+let epgReq = 0;
+async function loadEpg(streamId) {
+  const el = $('nowEpg');
+  el.textContent = '';
+  const my = ++epgReq;
+  try {
+    const data = await xtreamApi('action=get_short_epg&stream_id=' + streamId + '&limit=2');
+    if (my !== epgReq) return; // une autre chaîne a été sélectionnée entre-temps
+    const list = (data && data.epg_listings) || [];
+    if (!list.length) return;
+    const now = decodeEpg(list[0].title);
+    const next = list[1] ? decodeEpg(list[1].title) : '';
+    const t = (s) => { const d = new Date((Number(s) || 0) * 1000); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+    let txt = now ? `🔴 ${now}` : '';
+    if (list[0].start_timestamp) txt = `🔴 ${t(list[0].start_timestamp)} ${now}`;
+    if (next) txt += `   ·   ⏭ ${next}`;
+    el.textContent = txt;
+  } catch { /* EPG indisponible : on ignore */ }
+}
+
 function play(channel) {
   state.current = channel;
   $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
+  loadEpg(channel.stream_id);
   $('overlay').classList.add('hidden');
   $('recBtn').disabled = false;
   $('relayBtn').disabled = false;
@@ -387,17 +454,20 @@ async function showInfo() {
     `<div class="row"><span class="k">${k}</span><span class="v ${cls || ''}">${v}</span></div>`
   ).join('') +
     `<div class="row"><span class="k">Dossier d'enregistrement</span><span class="v" id="recDirVal">${recDir}</span></div>` +
-    `<button id="pickDirBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);">📁 Changer le dossier…</button>`;
+    `<button id="pickDirBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);">📁 Changer le dossier…</button>` +
+    `<button id="updBtn" class="copy" style="background:var(--panel2);border:1px solid var(--line);color:var(--txt);margin-top:8px;">🔄 Vérifier les mises à jour</button>`;
   $('pickDirBtn').onclick = async () => {
     const r = await window.api.pickRecordingsDir();
     if (r.error) { alert(r.error); return; }
     if (!r.canceled) $('recDirVal').textContent = r.dir;
   };
+  $('updBtn').onclick = () => window.api.checkUpdate();
   $('infoModal').classList.remove('hidden');
 }
 
 /* ---------- Wire up ---------- */
 window.addEventListener('DOMContentLoaded', () => {
+  loadFavs();
   // restore creds
   try {
     const saved = JSON.parse(localStorage.getItem('xtream') || 'null');
