@@ -7,7 +7,30 @@ const https = require('https');
 const { spawn } = require('child_process');
 
 const RELAY_PORT = 4567;
-const relay = { proc: null, server: null, dir: null };
+
+// Auto-découverte : on publie l'URL publique active vers un Worker Cloudflare,
+// pour que le site web la récupère et bascule automatiquement (URL trycloudflare
+// éphémère → le site n'a plus besoin d'une saisie manuelle à chaque redémarrage).
+const POINTER_URL = 'https://restream-pointer.khalilbenaz.workers.dev/current';
+const POINTER_SECRET = '55f40493adf04737101d9ed2c1247331d950cb04eb4086a8';
+
+function publishPointer(streamUrl) {
+  try {
+    const u = new URL(POINTER_URL);
+    const body = JSON.stringify({ url: streamUrl || '' });
+    const r = https.request({
+      hostname: u.hostname, path: u.pathname, method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'X-Auth': POINTER_SECRET,
+      },
+    }, (res) => { res.resume(); });
+    r.on('error', () => {});
+    r.write(body); r.end();
+  } catch {}
+}
+const relay = { proc: null, server: null, dir: null, url: '', stopping: false, restarts: 0, restartTimer: null, stableTimer: null };
 const tunnel = { proc: null, url: '' };
 
 let ffmpegPath = require('ffmpeg-static');
@@ -124,8 +147,10 @@ ipcMain.handle('record-start', async (e, { url, name }) => {
     '-i', LOCAL_URL,
     '-c', 'copy',
     '-bsf:a', 'aac_adtstoasc',
+    // MP4 fragmenté : chaque fragment est auto-suffisant, donc le fichier reste
+    // lisible (VLC, QuickTime) même si l'enregistrement est coupé brutalement.
+    '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
     '-f', 'mp4',
-    '-movflags', '+faststart',
     '-y', file
   ];
 
@@ -171,8 +196,53 @@ function lanIp() {
 }
 
 function stopRelay() {
+  relay.stopping = true;
+  if (relay.restartTimer) { clearTimeout(relay.restartTimer); relay.restartTimer = null; }
+  if (relay.stableTimer) { clearTimeout(relay.stableTimer); relay.stableTimer = null; }
   if (relay.proc) { try { relay.proc.kill('SIGKILL'); } catch {} relay.proc = null; }
   if (relay.server) { try { relay.server.close(); } catch {} relay.server = null; }
+}
+
+// Lance (ou relance) le ffmpeg du relais. Reconnexion auto si le flux fournisseur
+// hoquette, et redémarrage si ffmpeg meurt malgré tout (tant que le relais est voulu actif).
+function spawnRelayFfmpeg() {
+  const args = [
+    '-hide_banner', '-loglevel', 'error',
+    '-user_agent', 'IPTV-Live',
+    // résilience du flux montant (HTTP) : on ne lâche pas au moindre hoquet
+    '-reconnect', '1',
+    '-reconnect_at_eof', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '5',
+    '-rw_timeout', '15000000',
+    '-i', relay.url,
+    '-c', 'copy',
+    '-f', 'hls',
+    '-hls_time', '2',
+    '-hls_list_size', '8',
+    '-hls_flags', 'delete_segments+append_list+omit_endlist',
+    '-hls_segment_filename', path.join(relay.dir, 'seg%05d.ts'),
+    path.join(relay.dir, 'index.m3u8')
+  ];
+  relay.proc = spawn(ffmpegPath, args);
+  relay.proc.on('error', (e) => { notifyError('ffmpeg (relais) : ' + e.message); });
+
+  // si le relais tient 20 s, on considère qu'il est stable et on remet le compteur à zéro
+  if (relay.stableTimer) clearTimeout(relay.stableTimer);
+  relay.stableTimer = setTimeout(() => { relay.restarts = 0; }, 20000);
+
+  relay.proc.on('close', () => {
+    relay.proc = null;
+    if (relay.stableTimer) { clearTimeout(relay.stableTimer); relay.stableTimer = null; }
+    if (relay.stopping) return;                       // arrêt volontaire
+    if (relay.restarts < 20) {                        // mort inattendue -> on relance
+      relay.restarts++;
+      if (win && !win.isDestroyed()) win.webContents.send('tunnel-status', { msg: 'Flux interrompu, reconnexion…' });
+      relay.restartTimer = setTimeout(() => { if (!relay.stopping) spawnRelayFfmpeg(); }, 2000);
+    } else if (win && !win.isDestroyed()) {
+      win.webContents.send('relay-stopped', {});      // trop d'échecs : on abandonne
+    }
+  });
 }
 
 const MIME = { '.m3u8': 'application/vnd.apple.mpegurl', '.ts': 'video/mp2t' };
@@ -191,25 +261,11 @@ async function startRelayInternal(url, name) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   fs.mkdirSync(dir, { recursive: true });
   relay.dir = dir;
+  relay.url = url;
+  relay.stopping = false;
+  relay.restarts = 0;
 
-  const args = [
-    '-hide_banner', '-loglevel', 'error',
-    '-user_agent', 'IPTV-Live',
-    '-i', url,
-    '-c', 'copy',
-    '-f', 'hls',
-    '-hls_time', '2',
-    '-hls_list_size', '8',
-    '-hls_flags', 'delete_segments+append_list+omit_endlist',
-    '-hls_segment_filename', path.join(dir, 'seg%05d.ts'),
-    path.join(dir, 'index.m3u8')
-  ];
-  relay.proc = spawn(ffmpegPath, args);
-  relay.proc.on('error', (e) => { notifyError('ffmpeg (relais) : ' + e.message); });
-  relay.proc.on('close', () => {
-    relay.proc = null;
-    if (win && !win.isDestroyed()) win.webContents.send('relay-stopped', {});
-  });
+  spawnRelayFfmpeg();
 
   relay.server = http.createServer((req, res) => {
     const file = path.join(dir, path.basename(req.url.split('?')[0]) || 'index.m3u8');
@@ -271,11 +327,26 @@ ipcMain.handle('relay-stop', () => {
 });
 
 /* ---------- Tunnel public (Cloudflare, gratuit, sans compte) ---------- */
-function cfBinName() {
-  if (process.platform === 'win32') return 'cloudflared-windows-amd64.exe';
-  if (process.platform === 'darwin') return process.arch === 'arm64'
-    ? 'cloudflared-darwin-arm64.tgz' : 'cloudflared-darwin-amd64.tgz';
-  return 'cloudflared-linux-amd64';
+function cfAsset() {
+  if (process.platform === 'win32') return { name: 'cloudflared-windows-amd64.exe', tgz: false };
+  if (process.platform === 'darwin') return {
+    name: process.arch === 'arm64' ? 'cloudflared-darwin-arm64.tgz' : 'cloudflared-darwin-amd64.tgz',
+    tgz: true,
+  };
+  return { name: process.arch === 'arm64' ? 'cloudflared-linux-arm64' : 'cloudflared-linux-amd64', tgz: false };
+}
+
+// Les apps GUI macOS/Linux n'héritent pas du PATH du shell : on cherche
+// cloudflared dans les emplacements d'installation courants (Homebrew, etc.).
+function findSystemCloudflared() {
+  const candidates = [
+    '/opt/homebrew/bin/cloudflared',
+    '/usr/local/bin/cloudflared',
+    '/usr/bin/cloudflared',
+    '/bin/cloudflared',
+  ];
+  for (const c of candidates) { try { if (fs.existsSync(c)) return c; } catch {} }
+  return null;
 }
 
 function download(url, dest) {
@@ -297,24 +368,51 @@ function download(url, dest) {
   });
 }
 
+function run(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, args);
+    p.on('error', reject);
+    p.on('close', (code) => code === 0 ? resolve() : reject(new Error(cmd + ' a échoué (code ' + code + ')')));
+  });
+}
+
 async function ensureCloudflared() {
-  // Windows seulement pour le binaire .exe direct ; mac/linux peuvent l'avoir dans le PATH
   const dir = app.getPath('userData');
-  const exe = path.join(dir, process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+  const exeName = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
+  const exe = path.join(dir, exeName);
+
+  // 1) binaire déjà téléchargé par l'app
   if (fs.existsSync(exe)) return exe;
+
+  // 2) binaire installé sur le système (les apps GUI n'ont pas le PATH du shell)
   if (process.platform !== 'win32') {
-    // tente le binaire système si présent
-    return 'cloudflared';
+    const sys = findSystemCloudflared();
+    if (sys) return sys;
   }
-  const url = `https://github.com/cloudflare/cloudflared/releases/latest/download/${cfBinName()}`;
+
+  // 3) téléchargement du binaire officiel (extraction du .tgz sur macOS)
+  const asset = cfAsset();
+  const url = `https://github.com/cloudflare/cloudflared/releases/latest/download/${asset.name}`;
   if (win && !win.isDestroyed()) win.webContents.send('tunnel-status', { msg: 'Téléchargement de cloudflared…' });
-  await download(url, exe);
+
+  if (asset.tgz) {
+    const tgz = path.join(dir, 'cloudflared.tgz');
+    await download(url, tgz);
+    await run('tar', ['-xzf', tgz, '-C', dir]);   // l'archive contient le binaire « cloudflared »
+    try { fs.unlinkSync(tgz); } catch {}
+    if (!fs.existsSync(exe)) throw new Error('cloudflared introuvable après extraction');
+    fs.chmodSync(exe, 0o755);
+  } else {
+    await download(url, exe);
+    if (process.platform !== 'win32') fs.chmodSync(exe, 0o755);
+  }
   return exe;
 }
 
 function stopTunnel() {
   if (tunnel.proc) { try { tunnel.proc.kill('SIGKILL'); } catch {} tunnel.proc = null; }
   tunnel.url = '';
+  publishPointer('');   // efface le pointeur : le site n'affiche plus d'URL morte
 }
 
 ipcMain.handle('tunnel-start', async () => {
@@ -331,6 +429,7 @@ ipcMain.handle('tunnel-start', async () => {
       if (m && !settled) {
         settled = true;
         tunnel.url = m[0];
+        publishPointer(m[0] + '/index.m3u8');   // le site bascule automatiquement
         resolve({ url: m[0] });
       }
     };

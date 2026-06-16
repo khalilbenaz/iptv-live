@@ -1,6 +1,6 @@
 {
   "name": "iptv-live",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Simple Xtream live TV player with recording",
   "main": "main.js",
   "scripts": {
@@ -20,6 +20,9 @@
     "@electron/packager": "^20.0.1",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
+  },
+  "overrides": {
+    "webworkify-webpack": "2.1.5"
   },
   "build": {
     "appId": "com.b3g.iptvlive",
