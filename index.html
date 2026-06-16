@@ -39,7 +39,7 @@
       <ul id="channels" class="channels"></ul>
       <div class="side-foot">
         <button id="infoBtn" class="ghost">ℹ️ Infos</button>
-        <button id="recFolderBtn" class="ghost">📁 Enreg.</button>
+        <button id="recFolderBtn" class="ghost">📼 Enregistrements</button>
         <button id="logoutBtn" class="ghost">Quitter</button>
       </div>
     </aside>
@@ -85,6 +85,26 @@
           </div>
           <div id="tunnelStatus" class="hint" style="margin-top:8px;"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ENREGISTREMENTS -->
+  <div id="recModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>📼 Mes enregistrements</h2>
+        <button id="recModalClose" class="modal-x">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint" id="recDirHint">—</p>
+        <div class="rec-controls">
+          <select id="recFilter" title="Filtrer par chaîne"></select>
+          <input id="recSearch" type="text" placeholder="Rechercher…" autocomplete="off" />
+        </div>
+        <ul id="recList" class="rec-list"></ul>
+        <div id="recPager" class="rec-pager"></div>
+        <button id="recOpenFolder" class="copy">📁 Ouvrir le dossier</button>
       </div>
     </div>
   </div>

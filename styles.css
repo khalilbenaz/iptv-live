@@ -235,6 +235,28 @@ input, button, select {
   font-weight: 600;
 }
 .copy:hover { filter: brightness(1.08); }
+
+/* ---------- Liste des enregistrements ---------- */
+.rec-list { list-style: none; margin: 0 0 4px; padding: 0; max-height: 50vh; overflow-y: auto; }
+.rec-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 4px; border-bottom: 1px solid var(--line);
+}
+.rec-item:last-child { border-bottom: none; }
+.rec-meta { display: flex; flex-direction: column; min-width: 0; }
+.rec-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; }
+.rec-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.rec-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.rec-actions .ghost { padding: 7px 10px; font-size: 15px; border-radius: 8px; min-width: 38px; }
+.rec-empty { color: var(--muted); padding: 18px 4px; text-align: center; list-style: none; }
+.rec-controls { display: flex; gap: 8px; margin-bottom: 8px; }
+.rec-controls select, .rec-controls input {
+  flex: 1; min-width: 0; background: var(--panel2); color: var(--txt);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+}
+.rec-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+.rec-pager .ghost { padding: 6px 14px; font-size: 16px; line-height: 1; }
+.rec-pageinfo { color: var(--muted); font-size: 12px; min-width: 160px; text-align: center; }
 #relayBtn.live { background: var(--panel2); border: 1px solid #4dd080; color: #4dd080; }
 #relayBtn { background: var(--panel2); border: 1px solid var(--line); color: var(--txt); border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600; }
 #relayBtn:disabled { opacity: 0.4; cursor: default; }

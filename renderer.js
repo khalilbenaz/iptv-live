@@ -419,7 +419,11 @@ window.addEventListener('DOMContentLoaded', () => {
   $('search').addEventListener('input', renderChannels);
   $('qualSelect').addEventListener('change', renderChannels);
   $('recBtn').onclick = toggleRecord;
-  $('recFolderBtn').onclick = () => window.api.openRecordingsDir();
+  $('recFolderBtn').onclick = openRecModal;
+  $('recModalClose').onclick = () => $('recModal').classList.add('hidden');
+  $('recOpenFolder').onclick = () => window.api.openRecordingsDir();
+  $('recFilter').onchange = (e) => { recView.channel = e.target.value; recView.page = 1; renderRecPage(); };
+  $('recSearch').addEventListener('input', (e) => { recView.q = e.target.value; recView.page = 1; renderRecPage(); });
   $('toggleSidebar').onclick = () => $('app').classList.toggle('collapsed');
   $('infoBtn').onclick = showInfo;
   $('relayBtn').onclick = toggleRelay;
@@ -454,5 +458,142 @@ window.addEventListener('DOMContentLoaded', () => {
       window.api.relayStop();
       resumeDirect();
     }
+    // mémorise le dernier fichier et propose l'export WhatsApp
+    if (data.file) {
+      state.lastRecFile = data.file;
+      if (confirm('Enregistrement terminé.\n\nL\'exporter maintenant pour WhatsApp (son garanti + 30 fps) ?')) {
+        exportWhatsapp(data.file);
+      }
+    }
   });
 });
+
+// Convertit un fichier en MP4 compatible WhatsApp. `btn` optionnel = feedback visuel.
+async function exportWhatsapp(file, btn) {
+  const old = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const r = await window.api.exportWhatsapp(file || null);
+    if (r && r.ok) { if (btn) btn.textContent = '✓'; }
+    else if (r && r.canceled) { if (btn) btn.textContent = old; }
+    else { alert('Export WhatsApp échoué : ' + ((r && r.error) || 'inconnu')); if (btn) btn.textContent = old; }
+    return r;
+  } catch (e) {
+    alert('Export WhatsApp échoué : ' + e.message); if (btn) btn.textContent = old;
+  } finally {
+    if (btn) setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- Menu "Mes enregistrements" ----------
+const recView = { all: [], page: 1, perPage: 8, channel: '', q: '' };
+
+// Déduit le nom de chaîne à partir du nom de fichier "<chaîne>_<date>(_whatsapp).mp4"
+function channelOf(name) {
+  let s = name.replace(/\.[^.]+$/, '');
+  s = s.replace(/_whatsapp$/i, '');
+  s = s.replace(/_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/, '');
+  return s || name;
+}
+
+async function openRecModal() {
+  $('recModal').classList.remove('hidden');
+  await loadRecordings();
+}
+
+async function loadRecordings() {
+  const ul = $('recList');
+  ul.innerHTML = '<li class="rec-empty">Chargement…</li>';
+  let data;
+  try { data = await window.api.listRecordings(); }
+  catch (e) { ul.innerHTML = '<li class="rec-empty">Erreur de lecture du dossier</li>'; return; }
+  $('recDirHint').textContent = data.dir;
+  recView.all = (data.files || []).map((f) => ({ ...f, channel: channelOf(f.name) }));
+
+  // remplit le filtre par chaîne (en conservant la sélection courante)
+  const channels = [...new Set(recView.all.map((f) => f.channel))].sort((a, b) => a.localeCompare(b));
+  const sel = $('recFilter');
+  const prev = recView.channel;
+  sel.innerHTML = `<option value="">Toutes les chaînes (${recView.all.length})</option>` +
+    channels.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = channels.includes(prev) ? prev : '';
+  recView.channel = sel.value;
+  recView.page = 1;
+  renderRecPage();
+}
+
+function filteredRecordings() {
+  const q = recView.q.trim().toLowerCase();
+  return recView.all.filter((f) =>
+    (!recView.channel || f.channel === recView.channel) &&
+    (!q || f.name.toLowerCase().includes(q))
+  );
+}
+
+function renderRecPage() {
+  const ul = $('recList');
+  const list = filteredRecordings();
+  const pages = Math.max(1, Math.ceil(list.length / recView.perPage));
+  if (recView.page > pages) recView.page = pages;
+  const start = (recView.page - 1) * recView.perPage;
+  const slice = list.slice(start, start + recView.perPage);
+
+  ul.innerHTML = '';
+  if (!slice.length) {
+    ul.innerHTML = '<li class="rec-empty">Aucun enregistrement.</li>';
+  } else {
+    slice.forEach((f) => ul.appendChild(recRow(f)));
+  }
+
+  // pagination
+  const pager = $('recPager');
+  if (list.length <= recView.perPage) { pager.innerHTML = ''; return; }
+  pager.innerHTML = '';
+  const prevB = document.createElement('button');
+  prevB.className = 'ghost'; prevB.textContent = '‹'; prevB.disabled = recView.page <= 1;
+  prevB.onclick = () => { recView.page--; renderRecPage(); };
+  const label = document.createElement('span');
+  label.className = 'rec-pageinfo';
+  label.textContent = `Page ${recView.page} / ${pages} · ${list.length} fichiers`;
+  const nextB = document.createElement('button');
+  nextB.className = 'ghost'; nextB.textContent = '›'; nextB.disabled = recView.page >= pages;
+  nextB.onclick = () => { recView.page++; renderRecPage(); };
+  pager.append(prevB, label, nextB);
+}
+
+function recRow(f) {
+  const mb = (f.size / 1048576).toFixed(1);
+  const d = new Date(f.mtime);
+  const date = isNaN(d.getTime()) ? '' : d.toLocaleString();
+  const li = document.createElement('li');
+  li.className = 'rec-item';
+  li.innerHTML =
+    `<div class="rec-meta"><span class="rec-name">${f.isWhatsapp ? '📱 ' : ''}${escapeHtml(f.name)}</span>` +
+    `<span class="rec-sub">${mb} Mo · ${date}</span></div>`;
+  const actions = document.createElement('div');
+  actions.className = 'rec-actions';
+
+  const playB = document.createElement('button');
+  playB.className = 'ghost'; playB.textContent = '▶️'; playB.title = 'Lire';
+  playB.onclick = () => window.api.openFile(f.path);
+  actions.appendChild(playB);
+
+  if (!f.isWhatsapp) {
+    const waB = document.createElement('button');
+    waB.className = 'ghost'; waB.textContent = '📱'; waB.title = 'Exporter pour WhatsApp (son + 30 fps)';
+    waB.onclick = async () => { const r = await exportWhatsapp(f.path, waB); if (r && r.ok) loadRecordings(); };
+    actions.appendChild(waB);
+  }
+
+  const revB = document.createElement('button');
+  revB.className = 'ghost'; revB.textContent = '📁'; revB.title = 'Révéler dans le Finder';
+  revB.onclick = () => window.api.revealFile(f.path);
+  actions.appendChild(revB);
+
+  li.appendChild(actions);
+  return li;
+}

@@ -103,6 +103,78 @@ ipcMain.handle('open-recordings-dir', () => {
   shell.openPath(recordingsDir());
 });
 
+// Liste les enregistrements locaux (vidéos du dossier), récents d'abord.
+ipcMain.handle('list-recordings', () => {
+  const dir = recordingsDir();
+  let out = [];
+  try {
+    const exts = new Set(['.mp4', '.mov', '.mkv', '.ts']);
+    out = fs.readdirSync(dir)
+      .filter((f) => exts.has(path.extname(f).toLowerCase()))
+      .map((f) => {
+        const full = path.join(dir, f);
+        let st = {};
+        try { st = fs.statSync(full); } catch {}
+        return {
+          name: f,
+          path: full,
+          size: st.size || 0,
+          mtime: st.mtimeMs || 0,
+          isWhatsapp: /_whatsapp\.mp4$/i.test(f),
+        };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+  } catch {}
+  return { dir, files: out };
+});
+
+ipcMain.handle('reveal-file', (e, { file }) => { if (file) shell.showItemInFolder(file); return { ok: true }; });
+ipcMain.handle('open-file', async (e, { file }) => { const err = file ? await shell.openPath(file) : 'no file'; return { ok: !err, error: err || undefined }; });
+
+// Ré-encode un enregistrement en MP4 compatible WhatsApp (H264 main + AAC-LC + 30 fps).
+// Les flux IPTV sont souvent en HE-AAC / 50 fps, que le transcodeur WhatsApp gère mal
+// (résultat sans son). On normalise pour un partage fiable.
+ipcMain.handle('export-whatsapp', async (e, { file } = {}) => {
+  let src = file;
+  if (!src) {
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Choisir un enregistrement à exporter pour WhatsApp',
+      defaultPath: recordingsDir(),
+      filters: [{ name: 'Vidéos', extensions: ['mp4', 'mov', 'mkv', 'ts'] }],
+      properties: ['openFile']
+    });
+    if (r.canceled || !r.filePaths[0]) return { canceled: true };
+    src = r.filePaths[0];
+  }
+  const dir = path.dirname(src);
+  const base = path.basename(src).replace(/\.[^.]+$/, '');
+  const out = path.join(dir, `${base}_whatsapp.mp4`);
+
+  const args = [
+    '-hide_banner', '-loglevel', 'error',
+    '-i', src,
+    '-c:v', 'libx264', '-profile:v', 'main', '-pix_fmt', 'yuv420p',
+    '-r', '30', '-crf', '23', '-preset', 'veryfast',
+    '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2',
+    '-movflags', '+faststart',
+    '-y', out
+  ];
+  return await new Promise((resolve) => {
+    let err = '';
+    const ff = spawn(ffmpegPath, args);
+    ff.stderr.on('data', (d) => { err += d.toString(); });
+    ff.on('error', (er) => resolve({ ok: false, error: er.message }));
+    ff.on('close', (code) => {
+      if (code === 0 && fs.existsSync(out)) {
+        shell.showItemInFolder(out);
+        resolve({ ok: true, file: out });
+      } else {
+        resolve({ ok: false, error: err.slice(-300) || ('ffmpeg code ' + code) });
+      }
+    });
+  });
+});
+
 ipcMain.handle('pick-recordings-dir', async () => {
   const r = await dialog.showOpenDialog(win, {
     title: "Choisir le dossier d'enregistrement",
