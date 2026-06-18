@@ -10,7 +10,7 @@ const arch = process.argv[3] || (process.arch === 'arm64' ? 'arm64' : 'x64');
 packager({
   dir: '.',
   name: 'KTV',
-  appBundleId: 'com.b3g.iptvlive',
+  appBundleId: 'com.kba.ktv',
   appVersion: require('./package.json').version,
   icon: 'build/icon',
   platform,
