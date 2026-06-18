@@ -64,11 +64,12 @@ function createWindow() {
       nodeIntegration: false
     }
   });
+  win.maximize();
   win.loadFile('index.html');
 }
 
 // ---------- Vérification de mise à jour (app non signée : on propose, on n'auto-installe pas) ----------
-const REPO = 'khalilbenaz/iptv-live';
+const REPO = 'khalilbenaz/ktv';
 function cmpVer(a, b) {
   const pa = String(a).replace(/^v/, '').split('.').map(Number);
   const pb = String(b).replace(/^v/, '').split('.').map(Number);
