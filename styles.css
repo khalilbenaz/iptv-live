@@ -132,6 +132,16 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 /* affiches de taille identique dans les rangées (largeur fixe -> hauteur fixe) */
 .track .poster .p-img { aspect-ratio: auto; width: 150px; height: 225px; }
 
+/* Carte "Reprendre la lecture" — vignette paysage uniforme */
+.recent-card { flex: 0 0 240px; cursor: pointer; }
+.rc-thumb { position: relative; width: 240px; height: 135px; border-radius: 11px; overflow: hidden; background: var(--panel2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 34px; transition: border-color .15s, transform .15s; }
+.recent-card:hover .rc-thumb { border-color: var(--accent); transform: translateY(-3px); }
+.rc-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rc-thumb.live { background: #000; }
+.rc-thumb.live img { object-fit: contain; padding: 16px; }
+.rc-badge { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.72); color: var(--accent2); font-size: 10px; font-weight: 800; letter-spacing: .4px; padding: 2px 7px; border-radius: 5px; }
+.rc-title { width: 240px; font-size: 13px; font-weight: 600; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* HERO */
 .hero { position: relative; height: 260px; border-radius: 18px; overflow: hidden; background: linear-gradient(120deg, #2a1206, #3a1a08 40%, #10121a); }
 .hero-art { position: absolute; inset: 0; background:

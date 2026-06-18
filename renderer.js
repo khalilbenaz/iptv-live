@@ -182,7 +182,15 @@ function fillCatSelect(sel, withFav) {
 
 /* ---------- Routeur de vues ---------- */
 function showView(name) {
+  const leaving = state.view;
   state.view = name;
+  // Quitter le lecteur coupe la lecture (sinon le son continue en arrière-plan)
+  if (leaving === 'player' && name !== 'player') {
+    destroyPlayer();
+    state.current = null;
+    $('overlay').classList.remove('hidden');
+    $('overlay').textContent = 'Sélectionnez un contenu';
+  }
   if (name !== 'player') {
     state.browse = name;
     document.querySelectorAll('.rail .nav').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
@@ -644,12 +652,30 @@ function setRowCards(row, cards) {
 function loadingTile() { const d = document.createElement('div'); d.className = 'loading'; d.textContent = 'Chargement…'; return d; }
 function emptyTile(t) { const d = document.createElement('div'); d.className = 'loading'; d.textContent = t; return d; }
 
+// Carte "Reprendre" — vignette paysage uniforme quel que soit le type
 function recentCard(r) {
-  if (r.type === 'live') return channelCard({ stream_id: r.id, name: r.name, stream_icon: r.icon }, false);
-  return posterCard({
-    title: r.name, cover: r.icon, rating: 0,
-    onClick: () => playMedia(r.type === 'movie' ? vodUrl(r.id, r.ext) : seriesUrl(r.id, r.ext), r.name, false, r.type === 'movie' ? '🎬 Films' : '🎞️ Séries')
-  });
+  const card = document.createElement('div');
+  card.className = 'recent-card';
+  const th = document.createElement('div');
+  th.className = 'rc-thumb' + (r.type === 'live' ? ' live' : '');
+  if (r.icon) {
+    const im = document.createElement('img');
+    im.src = r.icon; im.loading = 'lazy';
+    im.onerror = () => { im.remove(); th.textContent = r.type === 'live' ? '📺' : '🎬'; };
+    th.appendChild(im);
+  } else th.textContent = r.type === 'live' ? '📺' : '🎬';
+  const badge = document.createElement('span');
+  badge.className = 'rc-badge';
+  badge.textContent = r.type === 'live' ? 'EN DIRECT' : (r.type === 'movie' ? 'FILM' : 'SÉRIE');
+  th.appendChild(badge);
+  const t = document.createElement('div');
+  t.className = 'rc-title'; t.textContent = r.name || '—';
+  card.appendChild(th); card.appendChild(t);
+  card.onclick = () => {
+    if (r.type === 'live') play({ stream_id: r.id, name: r.name, stream_icon: r.icon });
+    else playMedia(r.type === 'movie' ? vodUrl(r.id, r.ext) : seriesUrl(r.id, r.ext), r.name, false, r.type === 'movie' ? '🎬 Films' : '🎞️ Séries');
+  };
+  return card;
 }
 
 function buildHero(item) {
@@ -1168,9 +1194,13 @@ async function exportAllWhatsapp() {
 window.addEventListener('DOMContentLoaded', () => {
   loadFavs();
   loadRecent();
+  let autoConnect = false;
   try {
     const saved = JSON.parse(localStorage.getItem('xtream') || 'null');
-    if (saved) { $('srv').value = saved.srv; $('usr').value = saved.usr; $('pwd').value = saved.pwd; }
+    if (saved && saved.srv && saved.usr && saved.pwd) {
+      $('srv').value = saved.srv; $('usr').value = saved.usr; $('pwd').value = saved.pwd;
+      autoConnect = true;
+    }
   } catch {}
 
   const vid = $('video');
@@ -1261,4 +1291,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  // Reconnexion automatique au lancement si des identifiants sont mémorisés
+  if (autoConnect) connect();
 });
