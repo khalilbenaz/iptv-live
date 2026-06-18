@@ -6,7 +6,8 @@
   --line: #262a35;
   --txt: #e7e9ee;
   --muted: #8a90a0;
-  --accent: #4c8bf5;
+  --accent: #ff6a2c;       /* orange UHF */
+  --accent2: #ff8a3d;      /* orange clair pour dégradés */
   --rec: #ff4d4d;
 }
 html, body { height: 100%; }
@@ -51,9 +52,27 @@ input, button, select {
   padding: 12px 14px;
 }
 .login-card input:focus { border-color: var(--accent); }
-.login-card button {
+/* champ mot de passe + bouton afficher/masquer */
+.pwd-wrap { position: relative; display: flex; }
+.pwd-wrap input { flex: 1; padding-right: 44px; }
+.pwd-eye {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px 10px;
+  opacity: .75;
+}
+.pwd-eye:hover { opacity: 1; }
+.login-card > button {
   margin-top: 6px;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -61,7 +80,7 @@ input, button, select {
   cursor: pointer;
   font-weight: 600;
 }
-.login-card button:hover { filter: brightness(1.08); }
+.login-card > button:hover { filter: brightness(1.08); }
 .msg { color: var(--rec); font-size: 13px; min-height: 16px; }
 
 /* APP LAYOUT */
@@ -285,6 +304,30 @@ input, button, select {
 .rec-pager .ghost { padding: 6px 14px; font-size: 16px; line-height: 1; }
 .rec-pageinfo { color: var(--muted); font-size: 12px; min-width: 160px; text-align: center; }
 .rec-actions .danger:hover { color: var(--rec, #ff3b5c); border-color: var(--rec, #ff3b5c); }
+.rec-day {
+  list-style: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 12px 2px 4px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+.rec-day:first-child { padding-top: 2px; }
+.rec-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  margin: 10px 2px 0;
+  cursor: pointer;
+}
+.rec-opt input { accent-color: var(--accent); cursor: pointer; }
 .rec-foot { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
 .rec-foot .ghost { flex: 1; padding: 11px; }
 .rec-foot .copy { flex: 1; }

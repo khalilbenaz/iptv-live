@@ -1,6 +1,6 @@
 {
   "name": "iptv-live",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Simple Xtream live TV player with recording",
   "main": "main.js",
   "scripts": {

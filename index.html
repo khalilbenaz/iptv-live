@@ -15,7 +15,10 @@
       <p class="sub">Connexion Xtream Codes</p>
       <input id="srv" type="text" placeholder="http://serveur:port" autocomplete="off" />
       <input id="usr" type="text" placeholder="Utilisateur" autocomplete="off" />
-      <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="off" />
+      <div class="pwd-wrap">
+        <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="off" />
+        <button id="pwdToggle" type="button" class="pwd-eye" title="Afficher / masquer le mot de passe" aria-label="Afficher le mot de passe">👁</button>
+      </div>
       <button id="connectBtn">Se connecter</button>
       <div id="loginMsg" class="msg"></div>
     </div>
@@ -126,6 +129,7 @@
         </div>
         <ul id="recList" class="rec-list"></ul>
         <div id="recPager" class="rec-pager"></div>
+        <label class="rec-opt"><input type="checkbox" id="recAskWa" /> Proposer l'export WhatsApp à la fin d'un enregistrement</label>
         <div class="rec-foot">
           <button id="recExportAll" class="ghost">📱 Tout convertir (filtre actuel)</button>
           <button id="recOpenFolder" class="copy" style="margin-top:0;">📁 Ouvrir le dossier</button>

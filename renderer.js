@@ -585,6 +585,14 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   $('connectBtn').onclick = connect;
+  $('pwdToggle').onclick = () => {
+    const p = $('pwd');
+    const show = p.type === 'password';
+    p.type = show ? 'text' : 'password';
+    $('pwdToggle').textContent = show ? '🙈' : '👁';
+    $('pwdToggle').setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+    p.focus();
+  };
   ['srv', 'usr', 'pwd'].forEach(id =>
     $(id).addEventListener('keydown', e => { if (e.key === 'Enter') connect(); }));
 
@@ -596,6 +604,8 @@ window.addEventListener('DOMContentLoaded', () => {
   $('recModalClose').onclick = () => $('recModal').classList.add('hidden');
   $('recOpenFolder').onclick = () => window.api.openRecordingsDir();
   $('recExportAll').onclick = exportAllWhatsapp;
+  $('recAskWa').checked = getAskWa();
+  $('recAskWa').onchange = (e) => setAskWa(e.target.checked);
   $('recFilter').onchange = (e) => { recView.channel = e.target.value; recView.page = 1; renderRecPage(); };
   $('recSearch').addEventListener('input', (e) => { recView.q = e.target.value; recView.page = 1; renderRecPage(); });
   $('toggleSidebar').onclick = () => $('app').classList.toggle('collapsed');
@@ -642,10 +652,10 @@ window.addEventListener('DOMContentLoaded', () => {
       window.api.relayStop();
       resumeDirect();
     }
-    // mémorise le dernier fichier et propose l'export WhatsApp
+    // mémorise le dernier fichier et propose l'export WhatsApp (si activé dans les réglages)
     if (data.file) {
       state.lastRecFile = data.file;
-      if (confirm('Enregistrement terminé.\n\nL\'exporter maintenant pour WhatsApp (son garanti + 30 fps) ?')) {
+      if (getAskWa() && confirm('Enregistrement terminé.\n\nL\'exporter maintenant pour WhatsApp (son garanti + 30 fps) ?')) {
         exportWhatsapp(data.file);
       }
     }
@@ -672,6 +682,11 @@ async function exportWhatsapp(file, btn) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+
+// ---------- Réglage : proposer l'export WhatsApp après enregistrement ----------
+// Mémorisé en localStorage ('0' = désactivé). Activé par défaut.
+function getAskWa() { return localStorage.getItem('rec_ask_whatsapp') !== '0'; }
+function setAskWa(on) { localStorage.setItem('rec_ask_whatsapp', on ? '1' : '0'); }
 
 // ---------- Menu "Mes enregistrements" ----------
 const recView = { all: [], page: 1, perPage: 8, channel: '', q: '' };
@@ -718,6 +733,26 @@ function filteredRecordings() {
   );
 }
 
+// Clé de jour (YYYY-MM-DD, fuseau local) pour regrouper les enregistrements
+function dayKey(mtime) {
+  const d = new Date(mtime);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Libellé lisible d'un jour : Aujourd'hui / Hier / date complète
+function dayLabel(mtime) {
+  const k = dayKey(mtime);
+  if (!k) return 'Date inconnue';
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  const yest = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  if (k === today) return "Aujourd'hui";
+  if (k === yest) return 'Hier';
+  return new Date(mtime).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function renderRecPage() {
   const ul = $('recList');
   const list = filteredRecordings();
@@ -730,7 +765,19 @@ function renderRecPage() {
   if (!slice.length) {
     ul.innerHTML = '<li class="rec-empty">Aucun enregistrement.</li>';
   } else {
-    slice.forEach((f) => ul.appendChild(recRow(f)));
+    // en-têtes de jour : un titre dès que la date change (liste déjà triée du + récent au + ancien)
+    let lastDay = null;
+    slice.forEach((f) => {
+      const k = dayKey(f.mtime);
+      if (k !== lastDay) {
+        lastDay = k;
+        const head = document.createElement('li');
+        head.className = 'rec-day';
+        head.textContent = dayLabel(f.mtime);
+        ul.appendChild(head);
+      }
+      ul.appendChild(recRow(f));
+    });
   }
 
   // pagination
