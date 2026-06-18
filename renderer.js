@@ -655,6 +655,7 @@ function buildHome() {
   if (state.recent.length) root.appendChild(makeRow('Reprendre la lecture', state.recent.map(recentCard)));
   if (state.favs.length) root.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => { $('catSelect').value = 'favs'; showView('live'); }));
 
+  // Catégories choisies dans les Réglages (s'ajoutent aux rangées par défaut)
   const cats = loadHomeCats();
   if (cats.length) {
     const rows = cats.map((c) => {
@@ -663,13 +664,13 @@ function buildHome() {
       return row;
     });
     fillCategoryRows(cats, rows);
-  } else {
-    // Par défaut : films & séries récemment ajoutés
-    const moviesRow = makeRow('Films récemment ajoutés', [loadingTile()], () => showView('movies'));
-    const seriesRow = makeRow('Séries', [loadingTile()], () => showView('series'));
-    root.appendChild(moviesRow); root.appendChild(seriesRow);
-    fillHomeContent(moviesRow, seriesRow);
   }
+
+  // Toujours présentes : films & séries récemment ajoutés
+  const moviesRow = makeRow('Films récemment ajoutés', [loadingTile()], () => showView('movies'));
+  const seriesRow = makeRow('Séries', [loadingTile()], () => showView('series'));
+  root.appendChild(moviesRow); root.appendChild(seriesRow);
+  fillHomeContent(moviesRow, seriesRow);
 }
 
 // Remplit les rangées de catégories choisies (max 20 éléments + "tout voir")
