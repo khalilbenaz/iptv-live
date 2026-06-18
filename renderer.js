@@ -215,19 +215,22 @@ function onSearch() {
 
 /* ---------- LIVE ---------- */
 async function ensureLive() {
-  if (state.channels.length || !state.categories.length) { renderLiveGrid(); return; }
-  $('catSelect').value = state.categories[0].category_id;
-  await loadChannels(state.categories[0].category_id);
+  if (!state.categories.length) return;
+  const cat = $('catSelect').value || state.categories[0].category_id;
+  $('catSelect').value = cat;
+  if (state.curLiveCat === cat) { renderLiveGrid(); return; }
+  await loadChannels(cat);
 }
 
 async function loadChannels(catId) {
   let list;
-  if (catId === 'favs') { state.channels = state.favs; renderLiveGrid(); return; }
+  if (catId === 'favs') { state.channels = state.favs; state.curLiveCat = 'favs'; renderLiveGrid(); return; }
   if (!state.allByCat[catId]) {
     list = await xtreamApi('action=get_live_streams&category_id=' + catId);
     state.allByCat[catId] = Array.isArray(list) ? list : [];
   }
   state.channels = state.allByCat[catId];
+  state.curLiveCat = catId;
   renderLiveGrid();
 }
 
@@ -637,6 +640,10 @@ async function fillGuideRow(c, row) {
 }
 
 /* ---------- ACCUEIL ---------- */
+// Catégories choisies pour l'accueil : [{kind:'live'|'movie'|'series', id, name}]
+function loadHomeCats() { try { return JSON.parse(localStorage.getItem('home_cats') || '[]'); } catch { return []; } }
+function saveHomeCats(arr) { try { localStorage.setItem('home_cats', JSON.stringify(arr)); } catch {} }
+
 function buildHome() {
   const root = $('homeRows');
   root.innerHTML = '';
@@ -646,13 +653,64 @@ function buildHome() {
   if (heroItem) root.appendChild(buildHero(heroItem));
 
   if (state.recent.length) root.appendChild(makeRow('Reprendre la lecture', state.recent.map(recentCard)));
-  if (state.favs.length) root.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false))));
+  if (state.favs.length) root.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => { $('catSelect').value = 'favs'; showView('live'); }));
 
-  // Films & séries (récemment ajoutés) — chargés à la volée
-  const moviesRow = makeRow('Films récemment ajoutés', [loadingTile()]);
-  const seriesRow = makeRow('Séries', [loadingTile()]);
-  root.appendChild(moviesRow); root.appendChild(seriesRow);
-  fillHomeContent(moviesRow, seriesRow);
+  const cats = loadHomeCats();
+  if (cats.length) {
+    const rows = cats.map((c) => {
+      const row = makeRow(c.name, [loadingTile()], () => seeAll(c));
+      root.appendChild(row);
+      return row;
+    });
+    fillCategoryRows(cats, rows);
+  } else {
+    // Par défaut : films & séries récemment ajoutés
+    const moviesRow = makeRow('Films récemment ajoutés', [loadingTile()], () => showView('movies'));
+    const seriesRow = makeRow('Séries', [loadingTile()], () => showView('series'));
+    root.appendChild(moviesRow); root.appendChild(seriesRow);
+    fillHomeContent(moviesRow, seriesRow);
+  }
+}
+
+// Remplit les rangées de catégories choisies (max 20 éléments + "tout voir")
+async function fillCategoryRows(cats, rows) {
+  for (let i = 0; i < cats.length; i++) {
+    const c = cats[i], row = rows[i];
+    try {
+      if (c.kind === 'live') {
+        if (!state.allByCat[c.id]) {
+          const r = await xtreamApi('action=get_live_streams&category_id=' + c.id);
+          state.allByCat[c.id] = Array.isArray(r) ? r : [];
+        }
+        const items = state.allByCat[c.id].filter((x) => !isJunkChannel(x)).slice(0, 20);
+        if (items.length) setRowCards(row, items.map((x) => channelCard(x, false))); else row.remove();
+      } else if (c.kind === 'movie') {
+        await loadVodData();
+        const items = (state.vod || []).filter((m) => String(m.category_id) === String(c.id)).slice(0, 20);
+        if (items.length) setRowCards(row, items.map((m) => posterCard({
+          title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
+          onClick: () => playMovie(m),
+          onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); }
+        }))); else row.remove();
+      } else {
+        await loadSeriesData();
+        const items = (state.series || []).filter((s) => String(s.category_id) === String(c.id)).slice(0, 20);
+        if (items.length) setRowCards(row, items.map((s) => posterCard({ title: s.name, cover: s.cover || s.stream_icon, rating: s.rating, onClick: () => openSeries(s) }))); else row.remove();
+      }
+    } catch { row.remove(); }
+  }
+}
+
+// "tout voir" : ouvre la section filtrée sur la catégorie (tous les éléments)
+async function seeAll(c) {
+  if (c.kind === 'live') { $('catSelect').value = c.id; showView('live'); }
+  else if (c.kind === 'movie') {
+    showView('movies'); await ensureVod();
+    if ($('vodCat').querySelector(`option[value="${c.id}"]`)) { $('vodCat').value = c.id; renderMovies(); }
+  } else {
+    showView('series'); await ensureSeries();
+    if ($('seriesCat').querySelector(`option[value="${c.id}"]`)) { $('seriesCat').value = c.id; renderSeries(); }
+  }
 }
 
 async function fillHomeContent(moviesRow, seriesRow) {
@@ -670,10 +728,16 @@ async function fillHomeContent(moviesRow, seriesRow) {
   } catch { seriesRow.remove(); }
 }
 
-function makeRow(title, cards) {
+function makeRow(title, cards, onSeeAll) {
   const row = document.createElement('div');
   row.className = 'home-row';
   const h = document.createElement('h2'); h.textContent = title;
+  if (onSeeAll) {
+    const a = document.createElement('span');
+    a.className = 'see-all'; a.textContent = 'tout voir ›';
+    a.onclick = onSeeAll;
+    h.appendChild(a);
+  }
   const track = document.createElement('div'); track.className = 'track';
   cards.forEach((c) => track.appendChild(c));
   row.appendChild(h); row.appendChild(track);
@@ -1040,6 +1104,57 @@ async function buildSettings() {
     await window.api.xmltvConfig({ enabled: !s.enabled });
     setTimeout(refreshXmltv, 800);
   };
+
+  renderHomeCatPicker();
+}
+
+// Sélecteur des catégories affichées sur l'accueil (Live / Films / Séries)
+async function renderHomeCatPicker() {
+  const host = document.createElement('div');
+  host.className = 'settings-section';
+  host.innerHTML = `<h3>🏠 Catégories affichées sur l'accueil</h3>` +
+    `<p class="hint">Coche les catégories à afficher en rangées sur l'accueil. Vide = Films &amp; Séries récents par défaut. Chaque rangée a un « tout voir » pour afficher tout son contenu.</p>` +
+    `<div class="cat-pick-groups"><div class="loading">Chargement des catégories…</div></div>`;
+  $('settingsBody').appendChild(host);
+  try { await loadVodData(); } catch {}
+  try { await loadSeriesData(); } catch {}
+
+  const sel = loadHomeCats();
+  const isOn = (kind, id) => sel.some((c) => c.kind === kind && String(c.id) === String(id));
+  const groups = [
+    ['live', '📺 Live TV', state.categories.map((c) => ({ id: c.category_id, name: c.category_name }))],
+    ['movie', '🎬 Films', (state.vodCats || []).map((c) => ({ id: c.category_id, name: c.category_name }))],
+    ['series', '🎞️ Séries', (state.seriesCats || []).map((c) => ({ id: c.category_id, name: c.category_name }))]
+  ];
+  const wrap = host.querySelector('.cat-pick-groups');
+  wrap.innerHTML = '';
+  for (const [kind, label, list] of groups) {
+    if (!list.length) continue;
+    const g = document.createElement('div');
+    g.className = 'cat-group';
+    g.innerHTML = `<div class="cat-group-h">${label}</div>`;
+    const box = document.createElement('div');
+    box.className = 'cat-checks';
+    for (const cat of list) {
+      const lbl = document.createElement('label');
+      lbl.className = 'cat-check';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = isOn(kind, cat.id);
+      cb.onchange = () => {
+        let arr = loadHomeCats();
+        if (cb.checked) { if (!arr.some((x) => x.kind === kind && String(x.id) === String(cat.id))) arr.push({ kind, id: cat.id, name: cat.name }); }
+        else arr = arr.filter((x) => !(x.kind === kind && String(x.id) === String(cat.id)));
+        saveHomeCats(arr);
+        buildHome();
+      };
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(' ' + cat.name));
+      box.appendChild(lbl);
+    }
+    g.appendChild(box);
+    wrap.appendChild(g);
+  }
+  if (!wrap.children.length) wrap.innerHTML = '<p class="hint">Aucune catégorie disponible.</p>';
 }
 
 /* ---------- Réglage export WhatsApp après enregistrement ---------- */

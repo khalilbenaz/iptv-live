@@ -110,6 +110,14 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 .view-panel .v.bad { color: var(--rec); }
 .view-panel .hint { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
 .view-panel .rec-list { max-height: none; }
+/* Sélecteur de catégories d'accueil (Réglages) */
+.settings-section { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 18px; }
+.settings-section h3 { font-size: 15px; margin-bottom: 8px; }
+.cat-group { margin-top: 14px; }
+.cat-group-h { font-size: 13px; font-weight: 700; color: var(--accent2); margin-bottom: 8px; }
+.cat-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; }
+.cat-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt); cursor: pointer; padding: 3px 0; }
+.cat-check input { accent-color: var(--accent); cursor: pointer; flex: 0 0 auto; }
 
 /* SUBBAR */
 .subbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
@@ -122,7 +130,9 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 
 /* HOME ROWS */
 .rows { display: flex; flex-direction: column; gap: 30px; }
-.home-row h2 { font-size: 17px; margin-bottom: 13px; }
+.home-row h2 { font-size: 17px; margin-bottom: 13px; display: flex; align-items: center; }
+.see-all { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.see-all:hover { color: var(--accent2); }
 .track { display: flex; align-items: flex-start; gap: 14px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
 .track::-webkit-scrollbar { height: 7px; }
 .track::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }

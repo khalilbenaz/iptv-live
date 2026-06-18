@@ -57,7 +57,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#0e0f13',
     autoHideMenuBar: true,
-    title: 'IPTV Live',
+    title: 'KTV',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -92,7 +92,7 @@ async function checkForUpdates(silent) {
     const latest = rel.tag_name || '';
     if (!latest) throw new Error('no tag');
     if (cmpVer(latest, app.getVersion()) <= 0) {
-      if (!silent && win) dialog.showMessageBox(win, { type: 'info', message: 'IPTV Live est à jour', detail: 'Version ' + app.getVersion(), buttons: ['OK'] });
+      if (!silent && win) dialog.showMessageBox(win, { type: 'info', message: 'KTV est à jour', detail: 'Version ' + app.getVersion(), buttons: ['OK'] });
       return;
     }
     const dmg = (rel.assets || []).find((a) => /\.dmg$/i.test(a.name));
