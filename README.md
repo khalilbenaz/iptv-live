@@ -26,7 +26,7 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 - **Restream** : une seule connexion fournisseur partagée vers plusieurs appareils du réseau local.
 - **Lien public** (Cloudflare, gratuit) pour diffuser hors du LAN.
 - **Téléchargements** : films et séries (épisode, **saison entière** ou **série complète**), **mis en file et traités un par un** (respect de la limite d'une seule connexion fournisseur), avec tiroir de progression.
-- EPG externe **XMLTV** en secours (correspondance tolérante des noms, ex. chaînes *beIN Sports*), détails de l'abonnement.
+- EPG externe **XMLTV** en secours : correspondance **par tvg-id** (`epg_channel_id`) puis par **nom normalisé** (gère préfixes pays `FR:`/`TR:`, ballon stylisé `⚽`, exposants `ᴴᴰ`, choix de la langue) → récupère le programme des chaînes non taguées comme *beIN Sports*. Détails de l'abonnement.
 
 > ⚠️ Abonnements à **1 connexion** : lecture, enregistrement et restream passent tous par un **relais local** unique → 1 seule connexion fournisseur. Conséquence : tous les spectateurs d'un restream regardent **la même chaîne**.
 

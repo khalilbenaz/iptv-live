@@ -877,7 +877,7 @@ async function getChannelEpg(channel) {
   } catch {}
   if (!result) {
     try {
-      const r = await window.api.epgLookup(channel.name);
+      const r = await window.api.epgLookup(channel.name, channel.epg_channel_id);
       if (r && (r.cur || r.next)) result = { cur: r.cur, next: r.next, src: 'xmltv' };
     } catch {}
   }

@@ -120,19 +120,40 @@ const XMLTV_DEFAULT = [
   'https://epgshare01.online/epgshare01/epg_ripper_BEIN1.xml.gz',
   'https://epgshare01.online/epgshare01/epg_ripper_AR1.xml.gz',
 ];
-const xmltv = { index: new Map(), loadedAt: 0, loading: null };
+// index = nom normalisé -> [{id,pl}] (candidats) ; byId = tvg-id minuscule -> pl ;
+// byIdName = nom normalisé du tvg-id -> [{id,pl}]
+const xmltv = { index: new Map(), byId: new Map(), byIdName: new Map(), loadedAt: 0, loading: null };
 let providerEpgUrl = '';   // EPG complet du fournisseur Xtream (xmltv.php), défini après connexion
 
 const SUP_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
-const XMLTV_NOISE = new Set(['hd','fhd','uhd','sd','4k','8k','hevc','h265','h264','raw','backup','vip','multi','full','plus','digital','mono','stereo','english','french','arabic','arabe','ar','en','fr','tr','hq','channel','tv','live','d']);
+// Lettres en exposant utilisées comme suffixes de qualité (ᴴᴰ, ᴿᴬᵂ, ʰᵉᵛᶜ…)
+const SUP_LETTERS = { 'ᴴ':'h','ᴰ':'d','ᵁ':'u','ᴷ':'k','ᶠ':'f','ˢ':'s','ᴾ':'p','ᴿ':'r','ᴬ':'a','ᵂ':'w','ʰ':'h','ᵉ':'e','ᵛ':'v','ᶜ':'c','ᵖ':'p','ᵈ':'d','ᴺ':'n','ᴹ':'m','ᵃ':'a','ⁿ':'n','ᵗ':'t','ʜ':'h','ᴅ':'d' };
+// Mots à ignorer : qualité, langue, codes pays/package — pour matcher les variantes
+const XMLTV_NOISE = new Set(['hd','fhd','uhd','sd','4k','8k','hevc','h265','h264','raw','backup','vip','multi','full','plus','digital','mono','stereo','english','french','arabic','arabe','ar','en','fr','tr','hq','channel','tv','live','d','bk','lq','event','only','prime','fm','nm','ss','be','sa','us','uk','au','world','cup','stable','epl','f','direkte','exclusive','ppv','gold','next','new']);
 const TOKEN_ALIASES = { sports: 'sport', sptv: 'sport', bn: 'bein', bsport: 'beinsport' };
 function xmlNorm(s) {
-  const x = String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (m) => SUP_DIGITS.indexOf(m))
-    .replace(/[ᴴᴰᵁᴷᶠˢᴾ]/g, ' ');
+  let x = String(s || '').replace(/⚽/g, 'o').replace(/◉/g, ' ');           // ballon stylisé = "o"
+  x = x.split('').map((c) => SUP_LETTERS[c] || c).join('');                  // exposants -> lettres
+  x = x.replace(/^[^:|]{1,12}[:|]\s*/, '');                                  // retire un préfixe "FR:" / "TR|"
+  x = x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (m) => SUP_DIGITS.indexOf(m));
   return x.split(/[^a-z0-9]+/)
     .map((t) => TOKEN_ALIASES[t] || t)
     .filter((t) => t && !XMLTV_NOISE.has(t)).join('');
+}
+// Indices de langue/pays trouvés dans le nom brut, pour départager les candidats
+function ccHints(name) {
+  const m = String(name || '').toLowerCase().match(/\b(fr|en|ar|tr|us|uk|au|be|sa|qa|de|es|it)\b/g);
+  return new Set(m || []);
+}
+// Choisit le meilleur tvg-id parmi des candidats selon la langue de la chaîne
+function pickCandidate(cands, name) {
+  if (!cands || !cands.length) return null;
+  if (cands.length === 1) return cands[0];
+  const hints = ccHints(name);
+  for (const c of cands) { const suf = c.id.split('.').pop().toLowerCase(); if (hints.has(suf)) return c; }
+  for (const pref of ['fr', 'qa', 'tr']) { const c = cands.find((c) => c.id.toLowerCase().endsWith('.' + pref)); if (c) return c; }
+  return cands[0];
 }
 function decodeEntities(s) {
   return String(s || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -182,43 +203,60 @@ async function buildXmltv(sources) {
       progs.get(id).push({ title, st, en });
     }
   }
-  const index = new Map();
-  for (const [id, nm] of names) {
+  const index = new Map();      // nom normalisé -> [{id,pl}]
+  const byId = new Map();       // tvg-id minuscule -> pl
+  const byIdName = new Map();   // nom normalisé du tvg-id -> [{id,pl}]
+  const push = (map, k, id, pl) => { if (!k) return; if (!map.has(k)) map.set(k, []); if (!map.get(k).some((c) => c.id === id)) map.get(k).push({ id, pl }); };
+  // tous les ids ayant des programmes (même sans bloc <channel>)
+  const allIds = new Set([...names.keys(), ...progs.keys()]);
+  for (const id of allIds) {
     const pl = progs.get(id);
     if (!pl || !pl.length) continue;
     pl.sort((a, b) => a.st - b.st);
-    for (const n of nm) { const k = xmlNorm(n); if (k && !index.has(k)) index.set(k, pl); }
+    byId.set(id.toLowerCase(), pl);
+    for (const n of (names.get(id) || [])) push(index, xmlNorm(n), id, pl);
+    push(byIdName, xmlNorm(id.split('.')[0]), id, pl);
   }
-  return index;
+  return { index, byId, byIdName };
 }
 function ensureXmltv() {
   if (getSettings().xmltvEnabled === false) return Promise.resolve();
-  if (xmltv.index.size && Date.now() - xmltv.loadedAt < 6 * 3600 * 1000) return Promise.resolve();
+  if ((xmltv.index.size || xmltv.byId.size) && Date.now() - xmltv.loadedAt < 6 * 3600 * 1000) return Promise.resolve();
   if (xmltv.loading) return xmltv.loading;
   // l'EPG du fournisseur en priorité (couvre tes chaînes exactes), puis les sources publiques
   const sources = [providerEpgUrl, ...(getSettings().xmltvSources || XMLTV_DEFAULT)].filter(Boolean);
   xmltv.loading = buildXmltv(sources)
-    .then((idx) => { if (idx.size) { xmltv.index = idx; xmltv.loadedAt = Date.now(); } })
+    .then((r) => { if (r.index.size || r.byId.size) { xmltv.index = r.index; xmltv.byId = r.byId; xmltv.byIdName = r.byIdName; xmltv.loadedAt = Date.now(); } })
     .catch(() => {})
     .finally(() => { xmltv.loading = null; });
   return xmltv.loading;
 }
-function fuzzyXmltvLookup(key) {
-  if (!key || key.length < 4) return null;
-  // correspondance par préfixe/inclusion (ex: "beinsport1" ⊂ "beinsport1mena")
-  let best = null, bestLen = Infinity;
-  for (const [k, pl] of xmltv.index) {
+// Repli flou : correspondance par préfixe/inclusion (ex: "beinsport1" ⊂ "beinsport1mena")
+function fuzzyXmltvLookup(key, name) {
+  if (!key || key.length < 5) return null;
+  let cands = [], bestLen = Infinity;
+  for (const [k, list] of xmltv.index) {
     if (k === key || k.startsWith(key) || key.startsWith(k)) {
-      if (k.length < bestLen) { best = pl; bestLen = k.length; }
+      if (k.length < bestLen) { cands = list; bestLen = k.length; }
     }
   }
-  return best;
+  const c = pickCandidate(cands, name);
+  return c && c.pl;
 }
-ipcMain.handle('epg-lookup', async (e, { name } = {}) => {
+// Résout les programmes d'une chaîne : tvg-id exact, puis nom normalisé, puis flou
+function resolveEpg(name, tvgId) {
+  const tid = String(tvgId || '').trim().toLowerCase();
+  if (tid && xmltv.byId.has(tid)) return xmltv.byId.get(tid);
+  const key = xmlNorm(name);
+  if (!key) return null;
+  let c = pickCandidate(xmltv.index.get(key), name) || pickCandidate(xmltv.byIdName.get(key), name);
+  if (c) return c.pl;
+  return fuzzyXmltvLookup(key, name);
+}
+ipcMain.handle('epg-lookup', async (e, { name, tvgId } = {}) => {
   if (getSettings().xmltvEnabled === false) return null;
   await ensureXmltv();
-  const key = xmlNorm(name);
-  const pl = xmltv.index.get(key) || fuzzyXmltvLookup(key);
+  const pl = resolveEpg(name, tvgId);
   if (!pl) return null;
   const now = Date.now() / 1000;
   const cur = pl.find((p) => p.st <= now && now < p.en) || null;
@@ -228,14 +266,14 @@ ipcMain.handle('epg-lookup', async (e, { name } = {}) => {
 ipcMain.handle('set-provider-epg', (e, { url } = {}) => {
   if (url && url !== providerEpgUrl) {
     providerEpgUrl = url;
-    xmltv.index = new Map(); xmltv.loadedAt = 0;   // forcera un rechargement incluant le fournisseur
+    xmltv.index = new Map(); xmltv.byId = new Map(); xmltv.byIdName = new Map(); xmltv.loadedAt = 0;   // forcera un rechargement incluant le fournisseur
     if (getSettings().xmltvEnabled !== false) ensureXmltv();
   }
   return { ok: true };
 });
 ipcMain.handle('xmltv-status', () => ({
   enabled: getSettings().xmltvEnabled !== false,
-  channels: xmltv.index.size,
+  channels: xmltv.byId.size || xmltv.index.size,
   loadedAt: xmltv.loadedAt,
   sources: getSettings().xmltvSources || XMLTV_DEFAULT,
 }));
@@ -244,7 +282,7 @@ ipcMain.handle('xmltv-config', (e, { enabled, sources } = {}) => {
   if (enabled !== undefined) s.xmltvEnabled = enabled;
   if (Array.isArray(sources)) s.xmltvSources = sources.filter(Boolean);
   saveSettings();
-  xmltv.index = new Map(); xmltv.loadedAt = 0;  // forcera un rechargement
+  xmltv.index = new Map(); xmltv.byId = new Map(); xmltv.byIdName = new Map(); xmltv.loadedAt = 0;  // forcera un rechargement
   if (s.xmltvEnabled !== false) ensureXmltv();
   return { ok: true };
 });
