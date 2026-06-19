@@ -166,10 +166,12 @@ function parseXmltvTs(s) { // "20260616120000 +0200"
   if (m[7]) { const sign = m[7][0] === '-' ? 1 : -1; t += sign * ((+m[7].slice(1, 3)) * 60 + (+m[7].slice(3, 5))) * 60000; }
   return Math.floor(t / 1000);
 }
-function fetchBuf(url) {
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+function fetchBuf(url, ua) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'IPTV-Live' } }, (r) => {
-      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); return fetchBuf(r.headers.location).then(resolve, reject); }
+    const mod = url.startsWith('http://') ? http : https;
+    mod.get(url, { headers: { 'User-Agent': ua || 'IPTV-Live' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) { r.resume(); return fetchBuf(new URL(r.headers.location, url).href, ua).then(resolve, reject); }
       if (r.statusCode !== 200) { reject(new Error('HTTP ' + r.statusCode)); return; }
       const c = []; r.on('data', (d) => c.push(d)); r.on('end', () => resolve(Buffer.concat(c)));
     }).on('error', reject);
@@ -231,6 +233,32 @@ function ensureXmltv() {
     .finally(() => { xmltv.loading = null; });
   return xmltv.loading;
 }
+/* ---------- EPG web "sport" via l'API KTV (Cloudflare Worker) ----------
+   Secours pour les chaînes sport (beIN, Canal+, Eurosport…) non taguées par le
+   fournisseur. Le Worker scrape/normalise les sources publiques côté serveur
+   (corrigeable sans rebuild de l'app) et renvoie déjà des epochs UTC ;
+   l'app affiche en heure LOCALE (ex. Maroc) → conversion automatique.
+   Les clés de chaînes sont normalisées avec le MÊME algo que xmlNorm. */
+const KTV_EPG_API = 'https://ktv-epg.khalilbenaz.workers.dev';
+const webEpg = { index: new Map(), loadedAt: 0, loading: null };
+async function buildWebEpg() {
+  const data = JSON.parse((await fetchBuf(KTV_EPG_API + '/sport', BROWSER_UA)).toString('utf8'));
+  const index = new Map();
+  for (const [chan, list] of Object.entries(data.channels || {})) {
+    if (Array.isArray(list) && list.length) index.set(chan, list);   // [{st,en,title}] (epoch UTC)
+  }
+  return index;
+}
+function ensureWebEpg() {
+  if (getSettings().xmltvEnabled === false) return Promise.resolve();
+  if (webEpg.index.size && Date.now() - webEpg.loadedAt < 30 * 60 * 1000) return Promise.resolve();
+  if (webEpg.loading) return webEpg.loading;
+  webEpg.loading = buildWebEpg()
+    .then((idx) => { if (idx.size) { webEpg.index = idx; webEpg.loadedAt = Date.now(); } })
+    .catch(() => {})
+    .finally(() => { webEpg.loading = null; });
+  return webEpg.loading;
+}
 // Repli flou : correspondance par préfixe/inclusion (ex: "beinsport1" ⊂ "beinsport1mena")
 function fuzzyXmltvLookup(key, name) {
   if (!key || key.length < 5) return null;
@@ -251,11 +279,11 @@ function resolveEpg(name, tvgId) {
   if (!key) return null;
   let c = pickCandidate(xmltv.index.get(key), name) || pickCandidate(xmltv.byIdName.get(key), name);
   if (c) return c.pl;
-  return fuzzyXmltvLookup(key, name);
+  return fuzzyXmltvLookup(key, name) || webEpg.index.get(key) || null;
 }
 ipcMain.handle('epg-lookup', async (e, { name, tvgId } = {}) => {
   if (getSettings().xmltvEnabled === false) return null;
-  await ensureXmltv();
+  await Promise.all([ensureXmltv(), ensureWebEpg()]);
   const pl = resolveEpg(name, tvgId);
   if (!pl) return null;
   const now = Date.now() / 1000;

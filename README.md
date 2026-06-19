@@ -27,6 +27,7 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 - **Lien public** (Cloudflare, gratuit) pour diffuser hors du LAN.
 - **Téléchargements** : films et séries (épisode, **saison entière** ou **série complète**), **mis en file et traités un par un** (respect de la limite d'une seule connexion fournisseur), avec tiroir de progression.
 - EPG externe **XMLTV** en secours : correspondance **par tvg-id** (`epg_channel_id`) puis par **nom normalisé** (gère préfixes pays `FR:`/`TR:`, ballon stylisé `⚽`, exposants `ᴴᴰ`, choix de la langue) → récupère le programme des chaînes non taguées comme *beIN Sports*. Détails de l'abonnement.
+- **EPG sport via l'API KTV** (Cloudflare Worker `ktv-epg`) : pour les chaînes sport sans EPG fournisseur (beIN Sports, Canal+, Eurosport, L'Équipe…), un service maison agrège la grille du jour depuis des sources publiques et la sert normalisée — corrigeable côté serveur sans mise à jour de l'app. Heures converties en local automatiquement.
 
 > ⚠️ Abonnements à **1 connexion** : lecture, enregistrement et restream passent tous par un **relais local** unique → 1 seule connexion fournisseur. Conséquence : tous les spectateurs d'un restream regardent **la même chaîne**.
 
