@@ -125,11 +125,14 @@ let providerEpgUrl = '';   // EPG complet du fournisseur Xtream (xmltv.php), dé
 
 const SUP_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 const XMLTV_NOISE = new Set(['hd','fhd','uhd','sd','4k','8k','hevc','h265','h264','raw','backup','vip','multi','full','plus','digital','mono','stereo','english','french','arabic','arabe','ar','en','fr','tr','hq','channel','tv','live','d']);
+const TOKEN_ALIASES = { sports: 'sport', sptv: 'sport', bn: 'bein', bsport: 'beinsport' };
 function xmlNorm(s) {
   const x = String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (m) => SUP_DIGITS.indexOf(m))
     .replace(/[ᴴᴰᵁᴷᶠˢᴾ]/g, ' ');
-  return x.split(/[^a-z0-9]+/).filter((t) => t && !XMLTV_NOISE.has(t)).join('');
+  return x.split(/[^a-z0-9]+/)
+    .map((t) => TOKEN_ALIASES[t] || t)
+    .filter((t) => t && !XMLTV_NOISE.has(t)).join('');
 }
 function decodeEntities(s) {
   return String(s || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -200,10 +203,22 @@ function ensureXmltv() {
     .finally(() => { xmltv.loading = null; });
   return xmltv.loading;
 }
+function fuzzyXmltvLookup(key) {
+  if (!key || key.length < 4) return null;
+  // correspondance par préfixe/inclusion (ex: "beinsport1" ⊂ "beinsport1mena")
+  let best = null, bestLen = Infinity;
+  for (const [k, pl] of xmltv.index) {
+    if (k === key || k.startsWith(key) || key.startsWith(k)) {
+      if (k.length < bestLen) { best = pl; bestLen = k.length; }
+    }
+  }
+  return best;
+}
 ipcMain.handle('epg-lookup', async (e, { name } = {}) => {
   if (getSettings().xmltvEnabled === false) return null;
   await ensureXmltv();
-  const pl = xmltv.index.get(xmlNorm(name));
+  const key = xmlNorm(name);
+  const pl = xmltv.index.get(key) || fuzzyXmltvLookup(key);
   if (!pl) return null;
   const now = Date.now() / 1000;
   const cur = pl.find((p) => p.st <= now && now < p.en) || null;
@@ -410,8 +425,31 @@ function downloadsDir() {
 }
 function sendDl(channel, payload) { try { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); } catch {} }
 
-const downloads = new Map(); // id -> { req, out, part, file, aborted }
+const downloads = new Map(); // id -> { req, out, part, file, aborted, url }
 let dlSeq = 0;
+
+// File d'attente séquentielle : le fournisseur n'autorise qu'UNE seule
+// connexion à la fois, donc on télécharge un épisode après l'autre.
+const dlQueue = [];   // [id]
+let dlActiveId = null;
+function pumpQueue() {
+  if (dlActiveId) return;
+  let id;
+  while ((id = dlQueue.shift())) {
+    const entry = downloads.get(id);
+    if (entry && !entry.aborted) break;   // ignore les annulés
+    id = null;
+  }
+  if (!id) return;
+  const entry = downloads.get(id);
+  dlActiveId = id;
+  httpDownload(id, entry.url, entry, 0);
+}
+// Appelé à chaque fin de téléchargement (succès, échec ou annulation) pour
+// libérer la connexion et démarrer le suivant.
+function jobDone(id) {
+  if (dlActiveId === id) { dlActiveId = null; pumpQueue(); }
+}
 
 ipcMain.handle('downloads-dir', () => downloadsDir());
 ipcMain.handle('open-downloads-dir', () => { shell.openPath(downloadsDir()); return { ok: true }; });
@@ -431,10 +469,13 @@ ipcMain.handle('download-start', (e, { url, name, ext } = {}) => {
   const safe = sanitize(name) + '.' + String(ext || 'mp4').replace(/[^a-z0-9]/gi, '').slice(0, 5);
   const file = path.join(downloadsDir(), safe);
   const part = file + '.part';
-  const entry = { aborted: false, file, part };
+  const entry = { aborted: false, file, part, url };
   downloads.set(id, entry);
-  httpDownload(id, url, entry, 0);
-  return { id, file, name: safe };
+  dlQueue.push(id);
+  // Position dans la file (0 = démarre tout de suite)
+  const queued = dlActiveId ? dlQueue.length : 0;
+  pumpQueue();
+  return { id, file, name: safe, queued };
 });
 
 ipcMain.handle('download-cancel', (e, { id } = {}) => {
@@ -445,6 +486,7 @@ ipcMain.handle('download-cancel', (e, { id } = {}) => {
     try { entry.out && entry.out.destroy(); } catch {}
     try { fs.unlinkSync(entry.part); } catch {}
     downloads.delete(id);
+    jobDone(id);   // libère la connexion et lance le suivant
   }
   return { ok: true };
 });
@@ -461,6 +503,7 @@ function httpDownload(id, url, entry, redirects) {
       res.resume();
       if (!entry.aborted) sendDl('download-done', { id, ok: false, error: 'HTTP ' + res.statusCode });
       downloads.delete(id);
+      jobDone(id);
       return;
     }
     const total = Number(res.headers['content-length']) || 0;
@@ -474,14 +517,16 @@ function httpDownload(id, url, entry, redirects) {
     });
     res.pipe(out);
     out.on('finish', () => out.close(() => {
-      if (entry.aborted) { try { fs.unlinkSync(entry.part); } catch {} return; }
-      try { fs.renameSync(entry.part, entry.file); } catch (err) { sendDl('download-done', { id, ok: false, error: err.message }); downloads.delete(id); return; }
+      if (entry.aborted) { try { fs.unlinkSync(entry.part); } catch {} jobDone(id); return; }
+      try { fs.renameSync(entry.part, entry.file); } catch (err) { sendDl('download-done', { id, ok: false, error: err.message }); downloads.delete(id); jobDone(id); return; }
       sendDl('download-done', { id, ok: true, file: entry.file });
       downloads.delete(id);
+      jobDone(id);
     }));
   }); } catch (err) {
     sendDl('download-done', { id, ok: false, error: err.message });
     downloads.delete(id);
+    jobDone(id);
     return;
   }
   entry.req = req;
@@ -491,6 +536,7 @@ function httpDownload(id, url, entry, redirects) {
     try { fs.unlinkSync(entry.part); } catch {}
     sendDl('download-done', { id, ok: false, error: err.message });
     downloads.delete(id);
+    jobDone(id);
   });
 }
 

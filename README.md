@@ -19,14 +19,14 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 - **Live TV** en grille de cartes (logo + qualité 8K/4K/FHD/HD/SD + EPG *now/next*), lecture 1 clic (`mpegts.js` natif Xtream, fallback `hls.js`).
 - **Films (VOD)** et **Séries** (saisons/épisodes) — catégories françaises.
 - **Enchaînement automatique** de l'épisode suivant.
-- **Guide TV** : grille EPG (programmes en cours + à venir) par catégorie.
+- **Guide TV** : grille EPG (programmes en cours + à venir) par catégorie, noms de chaînes longs affichés sur **2 lignes**.
 
 ### Enregistrement, partage, téléchargement
 - **Enregistrement** `.mp4` (sans ré-encodage), dossier **configurable**, liste groupée **par date**, export **WhatsApp** optionnel (son + 30 fps).
 - **Restream** : une seule connexion fournisseur partagée vers plusieurs appareils du réseau local.
 - **Lien public** (Cloudflare, gratuit) pour diffuser hors du LAN.
-- **Téléchargements** : films et séries (épisode ou **saison entière**), avec tiroir de progression.
-- EPG externe **XMLTV** en secours, détails de l'abonnement.
+- **Téléchargements** : films et séries (épisode, **saison entière** ou **série complète**), **mis en file et traités un par un** (respect de la limite d'une seule connexion fournisseur), avec tiroir de progression.
+- EPG externe **XMLTV** en secours (correspondance tolérante des noms, ex. chaînes *beIN Sports*), détails de l'abonnement.
 
 > ⚠️ Abonnements à **1 connexion** : lecture, enregistrement et restream passent tous par un **relais local** unique → 1 seule connexion fournisseur. Conséquence : tous les spectateurs d'un restream regardent **la même chaîne**.
 

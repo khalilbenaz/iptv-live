@@ -515,7 +515,9 @@ function playEpisodeAt(q) {
   state.playQueue = q; // après playMedia (qui réinitialise la file)
 }
 
-// Télécharge tous les épisodes de la saison courante
+// Télécharge tous les épisodes de la saison courante.
+// Les téléchargements sont mis en file et traités un par un côté main
+// (le fournisseur n'autorise qu'une seule connexion à la fois).
 function downloadSeason() {
   const eps = (curSeries.episodes && curSeries.episodes[curSeason]) || [];
   if (!eps.length) return;
@@ -523,6 +525,21 @@ function downloadSeason() {
     const ext = ep.container_extension || 'mp4';
     startDownload(seriesUrl(ep.id, ext), `${curSeries.name} S${curSeason}E${ep.episode_num}`, ext);
   }
+}
+
+// Télécharge tous les épisodes de toutes les saisons (même file séquentielle).
+function downloadSeries() {
+  if (!curSeries || !curSeries.episodes) return;
+  const seasons = Object.keys(curSeries.episodes).sort((a, b) => Number(a) - Number(b));
+  let count = 0;
+  for (const season of seasons) {
+    for (const ep of curSeries.episodes[season] || []) {
+      const ext = ep.container_extension || 'mp4';
+      startDownload(seriesUrl(ep.id, ext), `${curSeries.name} S${season}E${ep.episode_num}`, ext);
+      count++;
+    }
+  }
+  if (count) $('seriesModal').classList.add('hidden');
 }
 
 /* ---------- Carte affiche (films/séries) ---------- */
@@ -1348,15 +1365,16 @@ const dlItems = {}; // id -> { el, bar, pct, cancel }
 
 function startDownload(url, name, ext) {
   window.api.downloadStart(url, name, ext).then((r) => {
-    if (r && r.id) addDlItem(r.id, r.name || name);
+    if (r && r.id) addDlItem(r.id, r.name || name, r.queued);
   }).catch(() => {});
 }
 
-function addDlItem(id, name) {
+function addDlItem(id, name, queued) {
   $('dlTray').classList.remove('hidden');
   const el = document.createElement('div');
   el.className = 'dl-item';
-  el.innerHTML = `<div class="dl-row"><span class="dl-name">${escapeHtml(name)}</span><span class="dl-pct">0%</span>` +
+  const start = queued ? '⏳ en file' : '0%';
+  el.innerHTML = `<div class="dl-row"><span class="dl-name">${escapeHtml(name)}</span><span class="dl-pct">${start}</span>` +
     `<button class="dl-cancel" title="Annuler">✕</button></div><div class="dl-bar"><i></i></div>`;
   const cancel = el.querySelector('.dl-cancel');
   cancel.onclick = () => { window.api.downloadCancel(id); removeDlItem(id); };
@@ -1441,6 +1459,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('seriesModal').onclick = (e) => { if (e.target.id === 'seriesModal') $('seriesModal').classList.add('hidden'); };
   $('seasonSelect').onchange = (e) => renderEpisodes(e.target.value);
   $('dlSeasonBtn').onclick = downloadSeason;
+  $('dlSeriesBtn').onclick = downloadSeries;
 
   // Téléchargements
   window.api.onDownloadProgress((d) => {
