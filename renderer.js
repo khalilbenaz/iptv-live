@@ -42,6 +42,8 @@ const state = {
   recStart: 0,
   recTimer: null,
   recDuration: 0,
+  recLocal: '',          // URL HLS locale du relais pendant un enregistrement
+  recChannelName: '',    // nom de la chaîne en cours d'enregistrement
   recStartedRelay: false,
   relaying: false,
   relayLan: '',
@@ -903,6 +905,28 @@ async function loadEpg(channel) {
 
 // Lecture LIVE
 function play(channel) {
+  // Garde "1 connexion" : si un enregistrement tourne, on ne peut pas ouvrir
+  // un 2e flux fournisseur.
+  if (state.recId) {
+    const sameChannel = state.recChannelName && channel.name === state.recChannelName;
+    if (sameChannel && state.recLocal) {
+      // On regarde la chaîne en cours d'enregistrement → via le relais local,
+      // aucune connexion fournisseur supplémentaire.
+      watchRecordingLive(channel);
+      return;
+    }
+    if (!sameChannel) {
+      const ok = confirm(
+        `⏺ Un enregistrement est en cours sur « ${state.recChannelName || 'une chaîne'} ».\n\n` +
+        `Ton abonnement n'autorise qu'un seul flux à la fois : regarder « ${channel.name || 'cette chaîne'} » ` +
+        `va ARRÊTER l'enregistrement en cours.\n\nContinuer ?`
+      );
+      if (!ok) return;
+      try { window.api.recordStop(state.recId); } catch {}
+      stopRecUI();
+    }
+  }
+
   state.current = channel;
   state.playQueue = null;
   pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon, cat: channel.category_id });
@@ -937,6 +961,26 @@ function play(channel) {
   } else {
     playHls(hlsUrl);
   }
+}
+
+// Regarder la chaîne actuellement enregistrée via le relais local (sans
+// ouvrir de 2e connexion fournisseur). On ne touche NI au relais NI à
+// l'enregistrement en cours.
+function watchRecordingLive(channel) {
+  state.current = channel;
+  state.playQueue = null;
+  pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon, cat: channel.category_id });
+  enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
+  $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
+  $('overlay').classList.add('hidden');
+  loadEpg(channel);
+  $('recBtn').disabled = false;
+  $('relayBtn').disabled = false;
+  $('scheduleBtn').disabled = false;
+  document.querySelectorAll('.chan-card').forEach((c) => c.classList.toggle('active', c.dataset.id == channel.stream_id));
+  buildPlayerSidebar(channel);
+  destroyPlayer();
+  playHls(state.recLocal);
 }
 
 function playHls(url, retries = 6) {
@@ -1070,6 +1114,8 @@ function beginRecUI(res, switchPlayer) {
   state.recStartedRelay = res.startedRelay;
   state.recStart = Date.now();
   state.recDuration = Math.floor(Number(res.durationSec) || 0);
+  state.recLocal = res.local || '';
+  state.recChannelName = res.name || (state.current && state.current.name) || '';
   if (switchPlayer && res.local && !state.relaying) { destroyPlayer(); playHls(res.local); }
   const btn = $('recBtn');
   btn.classList.add('recording');
@@ -1112,6 +1158,8 @@ function updateRecTime() {
 function stopRecUI() {
   state.recId = null;
   state.recDuration = 0;
+  state.recLocal = '';
+  state.recChannelName = '';
   clearInterval(state.recTimer);
   const btn = $('recBtn');
   btn.classList.remove('recording');
@@ -1217,13 +1265,10 @@ async function confirmSchedule() {
   }
 }
 
-async function refreshScheduleList() {
-  let list = [];
-  try { list = await window.api.scheduleList(); } catch {}
-  updateScheduleBadge(list.length);
-  const ul = $('schList');
+// Remplit une <ul> avec la liste des programmations (modale + écran enregistrements).
+function renderScheduleInto(ul, list) {
+  if (!ul) return;
   if (!list.length) { ul.innerHTML = '<li class="sch-empty">Aucun enregistrement programmé.</li>'; return; }
-  list.sort((a, b) => a.startAt - b.startAt);
   ul.innerHTML = '';
   for (const s of list) {
     const li = document.createElement('li');
@@ -1236,6 +1281,37 @@ async function refreshScheduleList() {
     cancel.className = 'sch-cancel'; cancel.textContent = '✕'; cancel.title = 'Annuler';
     cancel.onclick = async () => { await window.api.scheduleCancel(s.id); refreshScheduleList(); };
     li.appendChild(info); li.appendChild(cancel);
+    ul.appendChild(li);
+  }
+}
+
+async function refreshScheduleList() {
+  let list = [];
+  try { list = await window.api.scheduleList(); } catch {}
+  updateScheduleBadge(list.length);
+  list.sort((a, b) => a.startAt - b.startAt);
+  renderScheduleInto($('schList'), list);       // dans la modale Programmer
+  renderScheduleInto($('recSchList'), list);    // dans l'écran Mes enregistrements
+}
+
+// Liste des enregistrements actuellement en cours (écran Mes enregistrements).
+async function refreshActiveRecordings() {
+  const box = $('recActiveBox'); const ul = $('recActiveList');
+  if (!box || !ul) return;
+  let list = [];
+  try { list = await window.api.recordList(); } catch {}
+  if (!list.length) { box.classList.add('hidden'); ul.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  ul.innerHTML = '';
+  for (const r of list) {
+    const li = document.createElement('li');
+    const info = document.createElement('span');
+    info.className = 'sch-info';
+    info.textContent = `🔴 ${r.name}`;
+    const stop = document.createElement('button');
+    stop.className = 'sch-cancel'; stop.textContent = '⏹'; stop.title = 'Arrêter';
+    stop.onclick = async () => { await window.api.recordStop(r.id); setTimeout(refreshActiveRecordings, 600); };
+    li.appendChild(info); li.appendChild(stop);
     ul.appendChild(li);
   }
 }
@@ -1439,6 +1515,8 @@ function channelOf(name) {
 }
 
 async function loadRecordings() {
+  refreshScheduleList();
+  refreshActiveRecordings();
   const ul = $('recList');
   ul.innerHTML = '<li class="rec-empty">Chargement…</li>';
   let data;
@@ -1757,9 +1835,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Un enregistrement programmé vient de démarrer.
   window.api.onScheduleFired((data) => {
     refreshScheduleList();
+    refreshActiveRecordings();
     // Si l'utilisateur regarde la chaîne concernée, on bascule sur le flux local.
     const watching = state.current && (state.current.name === data.name);
-    beginRecUI({ id: data.id, startedRelay: data.startedRelay, local: data.local, durationSec: data.durationSec }, watching);
+    beginRecUI({ id: data.id, name: data.name, startedRelay: data.startedRelay, local: data.local, durationSec: data.durationSec }, watching);
     try { new Notification('⏺ Enregistrement programmé démarré', { body: data.name }); } catch {}
   });
   window.api.onScheduleError((data) => {
@@ -1770,6 +1849,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   window.api.onRecordStopped((data) => {
     stopRecUI();
+    refreshActiveRecordings();
     if (data.startedRelay && !state.relaying) {
       window.api.relayStop();
       resumeDirect();

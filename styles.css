@@ -394,3 +394,6 @@ input[type="datetime-local"], #schDur {
 .sch-cancel { flex: 0 0 auto; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; cursor: pointer; }
 .sch-cancel:hover { color: var(--rec); border-color: var(--rec); }
 .sch-empty { color: var(--muted); padding: 14px 4px; text-align: center; }
+.rec-section { margin: 6px 0 14px; }
+.rec-section-h { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 0 0 6px; }
+#recActiveBox .sch-info { color: var(--rec); font-weight: 600; }

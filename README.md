@@ -24,7 +24,9 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 
 ### Enregistrement, partage, téléchargement
 - **Enregistrement** `.mp4` (sans ré-encodage), dossier **configurable**, liste groupée **par date**, export **WhatsApp** optionnel (son + 30 fps).
-- **Enregistrement programmé & arrêt automatique** (bouton **📅 Programmer**) : choisis le **début** (immédiat ou à une heure précise) et la **fin** (après une **durée**, à une **heure précise**, ou illimité = arrêt manuel). Raccourcis 15 min / 30 min / 1 h / 2 h et **⚽ Match foot (2 h 30)**. Les programmations en attente sont listées et annulables ; une **pastille** sur le bouton indique leur nombre. Le minuteur REC affiche *écoulé / durée totale*.
+- **Enregistrement programmé & arrêt automatique** (bouton **📅 Programmer**) : choisis le **début** (immédiat ou à une heure précise) et la **fin** (après une **durée**, à une **heure précise**, ou illimité = arrêt manuel). Raccourcis 15 min / 30 min / 1 h / 2 h et **⚽ Match foot (2 h 30)**. Les programmations en attente sont listées et annulables ; une **pastille** sur le bouton indique leur nombre. Le minuteur REC affiche *écoulé / durée totale*. La programmation démarre **en arrière-plan** (sans ouvrir le lecteur).
+- **Suivi des enregistrements** : l'écran *Mes enregistrements* affiche les sections **⏺ En cours** (arrêt direct), **📅 Programmés** (annulation) et **💾 Enregistrés** (fichiers).
+- **Gestion « 1 connexion »** : pendant un enregistrement, cliquer sur la **chaîne enregistrée** la lit gratuitement via le relais local ; cliquer sur une **autre** chaîne affiche un avertissement avant d'arrêter l'enregistrement (impossible de tirer 2 flux à la fois sur un abonnement à 1 connexion).
   > 📦 Taille : enregistrement en copie de flux → ≈ `débit(Mbps) × durée(min) / 133` Go. Ex. un match beIN HD (~6 Mbps) de 2 h 30 ≈ **6–7 Go**.
 - **Restream** : une seule connexion fournisseur partagée vers plusieurs appareils du réseau local.
 - **Lien public** (Cloudflare, gratuit) pour diffuser hors du LAN.

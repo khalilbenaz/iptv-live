@@ -107,6 +107,20 @@
           <div class="view-panel">
             <h2 class="view-h">📼 Mes enregistrements</h2>
             <p class="hint" id="recDirHint">—</p>
+
+            <!-- En cours -->
+            <div id="recActiveBox" class="rec-section hidden">
+              <h3 class="rec-section-h">⏺ En cours</h3>
+              <ul id="recActiveList" class="sch-list"></ul>
+            </div>
+
+            <!-- Programmés -->
+            <div class="rec-section">
+              <h3 class="rec-section-h">📅 Programmés</h3>
+              <ul id="recSchList" class="sch-list"></ul>
+            </div>
+
+            <h3 class="rec-section-h" style="margin-top:18px;">💾 Enregistrés</h3>
             <div class="rec-controls">
               <select id="recFilter" title="Filtrer par chaîne"></select>
               <input id="recSearch" type="text" placeholder="Rechercher…" autocomplete="off" />
@@ -245,6 +259,7 @@
         </div>
 
         <div id="schSummary" class="hint"></div>
+        <p class="hint" style="margin-top:6px;">ℹ️ L'enregistrement programmé démarre <b>en arrière-plan</b> à l'heure prévue et s'arrête tout seul ; tu le retrouves dans <b>Mes enregistrements</b>. ⚠️ Abonnement <b>1 connexion</b> : s'il se lance pendant que tu regardes une <b>autre</b> chaîne, l'un des deux sera coupé.</p>
         <div id="schError" class="hint" style="color:#ff6b6b;"></div>
         <button id="schConfirm" class="copy">Programmer</button>
 
