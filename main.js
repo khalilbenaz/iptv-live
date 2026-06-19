@@ -137,9 +137,11 @@ function xmlNorm(s) {
   x = x.replace(/^[^:|]{1,12}[:|]\s*/, '');                                  // retire un préfixe "FR:" / "TR|"
   x = x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (m) => SUP_DIGITS.indexOf(m));
-  return x.split(/[^a-z0-9]+/)
+  const k = x.split(/[^a-z0-9]+/)
     .map((t) => TOKEN_ALIASES[t] || t)
     .filter((t) => t && !XMLTV_NOISE.has(t)).join('');
+  // "BEIN MAX 4" (fournisseur) == "beIN SPORTS MAX 4" (EPG) -> même clé
+  return k.replace(/^beinmax(\d)/, 'beinsportmax$1');
 }
 // Indices de langue/pays trouvés dans le nom brut, pour départager les candidats
 function ccHints(name) {

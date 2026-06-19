@@ -789,7 +789,7 @@ function recentCard(r) {
   t.className = 'rc-title'; t.textContent = r.name || '—';
   card.appendChild(th); card.appendChild(t);
   card.onclick = () => {
-    if (r.type === 'live') play({ stream_id: r.id, name: r.name, stream_icon: r.icon });
+    if (r.type === 'live') play({ stream_id: r.id, name: r.name, stream_icon: r.icon, category_id: r.cat });
     else playMedia(r.type === 'movie' ? vodUrl(r.id, r.ext) : seriesUrl(r.id, r.ext), r.name, false, r.type === 'movie' ? '🎬 Films' : '🎞️ Séries');
   };
   return card;
@@ -805,7 +805,7 @@ function buildHero(item) {
     `<h1>${escapeHtml(item.name || '—')}</h1>` +
     `<button class="btn play">▶ Regarder</button></div>`;
   hero.querySelector('.btn.play').onclick = () => {
-    if (live) play({ stream_id: item.id, name: item.name, stream_icon: item.icon });
+    if (live) play({ stream_id: item.id, name: item.name, stream_icon: item.icon, category_id: item.cat });
     else playMedia(item.type === 'movie' ? vodUrl(item.id, item.ext) : seriesUrl(item.id, item.ext), item.name, false, item.type === 'movie' ? '🎬 Films' : '🎞️ Séries');
   };
   return hero;
@@ -904,7 +904,7 @@ async function loadEpg(channel) {
 function play(channel) {
   state.current = channel;
   state.playQueue = null;
-  pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon });
+  pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon, cat: channel.category_id });
   enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
   $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
   $('overlay').classList.add('hidden');
@@ -963,11 +963,28 @@ function playHls(url, retries = 6) {
 
 /* ---------- Sidebar chaînes (player) ---------- */
 let csEpgObserver = null;
-function buildPlayerSidebar(active) {
+async function loadCategoryChannels(catId) {
+  if (!state.allByCat[catId]) {
+    const list = await xtreamApi('action=get_live_streams&category_id=' + catId);
+    state.allByCat[catId] = Array.isArray(list) ? list : [];
+  }
+  return state.allByCat[catId];
+}
+async function buildPlayerSidebar(active) {
   const aside = $('chanSidebar'), list = $('csList'), toggle = $('sidebarToggle');
-  const chans = (state.channels || []).filter((c) => !isJunkChannel(c));
+  let chans = (state.channels || []).filter((c) => !isJunkChannel(c));
+  let inList = active && chans.some((c) => c.stream_id == active.stream_id);
+  // chaîne lancée hors de la liste courante (ex. "Reprendre") : charger sa catégorie
+  if (active && !inList && active.category_id) {
+    try {
+      const cat = String(active.category_id);
+      state.channels = await loadCategoryChannels(cat);
+      state.curLiveCat = cat;
+      chans = (state.channels || []).filter((c) => !isJunkChannel(c));
+      inList = chans.some((c) => c.stream_id == active.stream_id);
+    } catch {}
+  }
   // seulement si la chaîne jouée appartient à la catégorie courante (même liste)
-  const inList = chans.some((c) => c.stream_id == active.stream_id);
   if (!active || chans.length < 2 || !inList) { aside.classList.add('hidden'); toggle.classList.add('hidden'); return; }
   toggle.classList.remove('hidden');
   aside.classList.remove('hidden');
