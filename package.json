@@ -1,6 +1,6 @@
 {
   "name": "iptv-live",
-  "version": "1.5.5",
+  "version": "1.5.8",
   "description": "KTV — lecteur Xtream (live, films, séries, EPG, enregistrement)",
   "main": "main.js",
   "scripts": {

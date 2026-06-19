@@ -45,7 +45,6 @@ const state = {
   recLocal: '',          // URL HLS locale du relais pendant un enregistrement
   recChannelName: '',    // nom de la chaîne en cours d'enregistrement
   recBadgeMin: localStorage.getItem('rec_badge_min') !== '0', // badge détaillé réduit ? (réduit par défaut)
-  liveReload: null,      // fonction de relance du flux live courant (watchdog)
   recStartedRelay: false,
   relaying: false,
   relayLan: '',
@@ -192,8 +191,6 @@ function showView(name) {
   // Quitter le lecteur coupe la lecture (sinon le son continue en arrière-plan)
   if (leaving === 'player' && name !== 'player') {
     destroyPlayer();
-    stopLiveWatchdog();
-    state.liveReload = null;
     state.current = null;
     state.playQueue = null;
     $('overlay').classList.remove('hidden');
@@ -838,8 +835,6 @@ function destroyPlayer() {
 function playMedia(url, title, isLive, crumb) {
   state.current = null;
   state.playQueue = null;
-  state.liveReload = null;       // VOD : pas de watchdog live
-  stopLiveWatchdog();
   enterPlayer(crumb || title, false);
   $('chanSidebar').classList.add('hidden');
   $('sidebarToggle').classList.add('hidden');
@@ -947,16 +942,6 @@ function play(channel) {
   document.querySelectorAll('.chan-card').forEach((c) => c.classList.toggle('active', c.dataset.id == channel.stream_id));
   buildPlayerSidebar(channel);
 
-  // Permet au watchdog/reconnexion de relancer CETTE chaîne en cas de gel.
-  state.liveReload = () => loadLiveStream(channel);
-  loadLiveStream(channel);
-}
-
-// (Re)charge le flux LIVE direct d'une chaîne. Gère la reconnexion auto :
-// beaucoup de fournisseurs ferment la connexion .ts après quelques dizaines de
-// secondes → mpegts vide sa mémoire tampon puis s'arrête (LOADING_COMPLETE)
-// sans se reconnecter. On relance alors automatiquement.
-function loadLiveStream(channel) {
   destroyPlayer();
   const v = $('video');
   const tsUrl = streamUrl(channel.stream_id, 'ts');
@@ -965,61 +950,17 @@ function loadLiveStream(channel) {
   if (window.mpegts && mpegts.isSupported()) {
     const p = mpegts.createPlayer(
       { type: 'mpegts', isLive: true, url: tsUrl },
-      { enableWorker: true, liveBufferLatencyChasing: true, lazyLoad: false,
-        autoCleanupSourceBuffer: true, enableStashBuffer: false }
+      { enableWorker: true, liveBufferLatencyChasing: false, liveSync: false, lazyLoad: false,
+        autoCleanupSourceBuffer: true, stashInitialSize: 1024 * 1024, enableStashBuffer: true }
     );
     p.attachMediaElement(v);
     p.load();
     suppressResume = false;
     p.play().catch(() => {});
-    // Erreur fatale → bascule HLS (plus robuste pour le live continu).
     p.on(mpegts.Events.ERROR, () => playHls(hlsUrl));
-    // Connexion fermée par le serveur (tampon qui se vide puis stop) → reconnexion.
-    p.on(mpegts.Events.LOADING_COMPLETE, () => reloadLiveNow());
     state.player = p;
   } else {
     playHls(hlsUrl);
-  }
-  startLiveWatchdog();
-}
-
-/* ---------- Watchdog anti-gel du live ---------- */
-const liveWatch = { timer: null, lastT: -1, lastAdvance: 0, retries: 0 };
-let lastReloadAt = 0;
-
-// Relance le flux live, en évitant les reconnexions trop rapprochées.
-function reloadLiveNow() {
-  if (!state.liveReload) return;
-  const now = Date.now();
-  if (now - lastReloadAt < 3000) return;
-  lastReloadAt = now;
-  state.liveReload();
-}
-
-function startLiveWatchdog() {
-  stopLiveWatchdog();
-  liveWatch.lastT = -1; liveWatch.lastAdvance = Date.now(); liveWatch.retries = 0;
-  liveWatch.timer = setInterval(checkLiveStall, 3000);
-}
-function stopLiveWatchdog() {
-  if (liveWatch.timer) { clearInterval(liveWatch.timer); liveWatch.timer = null; }
-}
-function checkLiveStall() {
-  if (!state.liveReload) { stopLiveWatchdog(); return; }   // plus en live
-  const v = $('video');
-  if (v.paused || v.ended || suppressResume) { liveWatch.lastAdvance = Date.now(); return; }
-  const t = v.currentTime;
-  if (t > liveWatch.lastT + 0.05) {                         // ça avance : OK
-    liveWatch.lastT = t; liveWatch.lastAdvance = Date.now(); liveWatch.retries = 0;
-    return;
-  }
-  // Lecture figée : on tente une relance (max 6 fois d'affilée).
-  if (Date.now() - liveWatch.lastAdvance > 9000) {
-    liveWatch.retries++;
-    if (liveWatch.retries > 6) { stopLiveWatchdog(); return; }
-    liveWatch.lastAdvance = Date.now();
-    liveWatch.lastT = -1;
-    reloadLiveNow();
   }
 }
 
@@ -1039,10 +980,8 @@ function watchRecordingLive(channel) {
   $('scheduleBtn').disabled = false;
   document.querySelectorAll('.chan-card').forEach((c) => c.classList.toggle('active', c.dataset.id == channel.stream_id));
   buildPlayerSidebar(channel);
-  state.liveReload = () => playHls(state.recLocal);
   destroyPlayer();
   playHls(state.recLocal);
-  startLiveWatchdog();
 }
 
 // Aller regarder la chaîne en cours d'enregistrement (via le relais local,
@@ -1062,10 +1001,8 @@ function watchCurrentRecording() {
   $('chanSidebar').classList.add('hidden');
   $('sidebarToggle').classList.add('hidden');
   $('recBtn').disabled = false; $('relayBtn').disabled = true; $('scheduleBtn').disabled = true;
-  state.liveReload = () => playHls(state.recLocal);
   destroyPlayer();
   playHls(state.recLocal);
-  startLiveWatchdog();
 }
 
 function playHls(url, retries = 6) {

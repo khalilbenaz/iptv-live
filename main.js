@@ -4,7 +4,20 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
+
+// Au démarrage : tue les ffmpeg orphelins d'une instance KTV précédente
+// (relais/enregistrement laissés vivants après un crash ou un force-quit).
+// Sans ça, l'orphelin garde la connexion fournisseur ouverte → la lecture
+// live ouvre une 2e connexion et se fait couper (abonnement 1 connexion).
+function killStrayFfmpeg() {
+  if (process.platform === 'win32') {
+    try { execFile('taskkill', ['/F', '/IM', 'ffmpeg.exe', '/FI', 'WINDOWTITLE eq iptv-relay*']); } catch {}
+    return;
+  }
+  // Cible le relais KTV (dossier temp 'iptv-relay'), très spécifique.
+  try { execFile('pkill', ['-9', '-f', 'iptv-relay']); } catch {}
+}
 
 const RELAY_PORT = 4567;
 
@@ -319,6 +332,7 @@ ipcMain.handle('xmltv-config', (e, { enabled, sources } = {}) => {
 });
 
 app.whenReady().then(() => {
+  killStrayFfmpeg();                              // libère la connexion d'un orphelin éventuel
   createWindow();
   setTimeout(() => checkForUpdates(true), 4000); // vérif discrète au démarrage
   setTimeout(() => { try { ensureXmltv(); } catch {} }, 6000); // précharge l'EPG externe
@@ -331,6 +345,16 @@ app.on('window-all-closed', () => {
   stopRelay();
   stopTunnel();
   if (process.platform !== 'darwin') app.quit();
+});
+app.on('before-quit', () => {
+  // Cmd+Q ne déclenche pas window-all-closed sur macOS → on nettoie ici aussi
+  // pour ne PAS laisser d'ffmpeg orphelin garder la connexion fournisseur.
+  for (const { proc } of recordings.values()) try { proc.kill('SIGKILL'); } catch {}
+  for (const { timer } of schedules.values()) try { clearTimeout(timer); } catch {}
+  schedules.clear();
+  stopRelay();
+  stopTunnel();
+  killStrayFfmpeg();
 });
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();

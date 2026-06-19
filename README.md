@@ -16,7 +16,7 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 
 ### Lecture
 - Connexion Xtream (URL / utilisateur / mot de passe mémorisés, **reconnexion automatique** au lancement, bouton afficher/masquer le mot de passe).
-- **Live TV** en grille de cartes (logo + qualité 8K/4K/FHD/HD/SD + EPG *now/next*), lecture 1 clic (`mpegts.js` natif Xtream, fallback `hls.js`) avec **reconnexion automatique** : si le fournisseur ferme le flux ou si la lecture se fige, KTV relance le flux tout seul (watchdog anti-gel).
+- **Live TV** en grille de cartes (logo + qualité 8K/4K/FHD/HD/SD + EPG *now/next*), lecture 1 clic (`mpegts.js` natif Xtream, fallback `hls.js`).
 - **Sidebar chaînes dans le lecteur** : à droite du player, liste repliable des chaînes de la **même catégorie** (logo + programme en cours) pour **zapper sans revenir à la liste complète**.
 - **Films (VOD)** et **Séries** (saisons/épisodes) — catégories françaises.
 - **Enchaînement automatique** de l'épisode suivant.
@@ -35,7 +35,7 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne pa
 - EPG externe **XMLTV** en secours : correspondance **par tvg-id** (`epg_channel_id`) puis par **nom normalisé** (gère préfixes pays `FR:`/`TR:`, ballon stylisé `⚽`, exposants `ᴴᴰ`, choix de la langue) → récupère le programme des chaînes non taguées comme *beIN Sports*. Détails de l'abonnement.
 - **EPG sport via l'API KTV** (Cloudflare Worker `ktv-epg`) : pour les chaînes sport sans EPG fournisseur (beIN Sports, Canal+, Eurosport, L'Équipe…), un service maison agrège la grille du jour depuis des sources publiques et la sert normalisée — corrigeable côté serveur sans mise à jour de l'app. Heures converties en local automatiquement.
 
-> ⚠️ Abonnements à **1 connexion** : lecture, enregistrement et restream passent tous par un **relais local** unique → 1 seule connexion fournisseur. Conséquence : tous les spectateurs d'un restream regardent **la même chaîne**.
+> ⚠️ Abonnements à **1 connexion** : lecture, enregistrement et restream passent tous par un **relais local** unique → 1 seule connexion fournisseur. Conséquence : tous les spectateurs d'un restream regardent **la même chaîne**. KTV **nettoie automatiquement** au démarrage et à la fermeture les processus `ffmpeg` orphelins d'une session précédente, pour ne jamais laisser la connexion bloquée.
 
 > 💡 Certains films/épisodes en `.mkv`/`.avi` ne sont pas lus par le lecteur intégré (limite de Chromium) — on peut les **télécharger** puis les ouvrir dans VLC.
 
