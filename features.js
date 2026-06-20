@@ -615,6 +615,26 @@ function ktvTraktPoll(d) {
   setTimeout(tick, interval);
 }
 function ktvTraktDisconnect() { ktvTraktSaveTok(null); ktvToast('Trakt déconnecté'); if (state.view === 'settings') buildSettings(); }
+// Méthode PIN : ouvre la page d'autorisation puis échange le code saisi.
+function ktvTraktOpenAuthorize() {
+  const cid = ktvSetting('traktClientId');
+  if (!cid) { alert('Renseigne d’abord le Client ID.'); return; }
+  const url = 'https://trakt.tv/oauth/authorize?response_type=code&client_id=' + encodeURIComponent(cid) + '&redirect_uri=urn:ietf:wg:oauth:2.0:oob';
+  try { window.api.openExternal(url); } catch {}
+}
+async function ktvTraktPinConnect() {
+  const cid = ktvSetting('traktClientId'), secret = ktvSetting('traktSecret');
+  if (!cid || !secret) { alert('Renseigne le Client ID ET le Client Secret avant de coller le PIN.'); return; }
+  const pin = prompt('Colle le code PIN affiché par Trakt :');
+  if (!pin) return;
+  try {
+    const r = await fetch(TRAKT_API + '/oauth/token', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: pin.trim(), client_id: cid, client_secret: secret, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', grant_type: 'authorization_code' }) });
+    if (!r.ok) { alert('Échec (' + r.status + '). Le PIN est peut-être expiré ou le Client Secret incorrect — régénère un PIN et réessaie.'); return; }
+    const t = await r.json(); t.obtained_at = Date.now(); ktvTraktSaveTok(t);
+    ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings();
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
 async function ktvTraktOnFinished(meta) {
   if (!meta || !ktvSetting('traktScrobble') || !ktvTraktConnected()) return;
   try {
@@ -786,9 +806,18 @@ function ktvBuildSettingsExtras() {
   scrobCb.appendChild(scb); scrobCb.appendChild(document.createTextNode(' Marquer vu automatiquement à la fin'));
   sec5.appendChild(scrobCb);
   const tBtn = document.createElement('button'); tBtn.className = 'copy'; tBtn.style.marginTop = '8px';
-  if (ktvTraktConnected()) { tBtn.textContent = '✓ Trakt connecté — Déconnecter'; tBtn.onclick = ktvTraktDisconnect; }
-  else { tBtn.textContent = '🔗 Connecter Trakt'; tBtn.onclick = ktvTraktConnect; }
-  sec5.appendChild(tBtn);
+  if (ktvTraktConnected()) {
+    tBtn.textContent = '✓ Trakt connecté — Déconnecter'; tBtn.onclick = ktvTraktDisconnect;
+    sec5.appendChild(tBtn);
+  } else {
+    tBtn.textContent = '🔗 Connecter (code device)'; tBtn.onclick = ktvTraktConnect;
+    sec5.appendChild(tBtn);
+    const authBtn = document.createElement('button'); authBtn.className = 'copy'; authBtn.style.marginTop = '8px';
+    authBtn.textContent = '1) Obtenir un PIN sur Trakt'; authBtn.onclick = ktvTraktOpenAuthorize;
+    const pinBtn = document.createElement('button'); pinBtn.className = 'copy'; pinBtn.style.marginTop = '8px';
+    pinBtn.textContent = '2) Coller le PIN et lier'; pinBtn.onclick = ktvTraktPinConnect;
+    sec5.appendChild(authBtn); sec5.appendChild(pinBtn);
+  }
   host.appendChild(sec5);
 
   /* --- Sources multiples --- */
