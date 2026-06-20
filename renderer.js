@@ -931,7 +931,8 @@ function destroyPlayer() {
 function playMedia(url, title, isLive, crumb, resumeKey) {
   state.current = null;
   state.playQueue = null;
-  state.nowMeta = null;
+  state.nowMeta = (typeof ktvMetaFromPlay === 'function') ? ktvMetaFromPlay(resumeKey, title) : null;
+  state.scrobbled = false;
   state.resumeKey = resumeKey || null;
   resetPlayerTools();
   enterPlayer(crumb || title, false);
@@ -2169,7 +2170,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Enchaînement automatique de l'épisode suivant
   vid.addEventListener('ended', () => {
     clearResume(state.resumeKey);
-    if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
+    if (!state.scrobbled && typeof ktvTraktOnFinished === 'function') { state.scrobbled = true; ktvTraktOnFinished(state.nowMeta); }
     const q = state.playQueue;
     if (q && q.idx + 1 < q.eps.length) playEpisodeAt({ ...q, idx: q.idx + 1 });
   });
@@ -2186,7 +2187,13 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   // Sauvegarde périodique de la position de lecture.
   vid.addEventListener('timeupdate', () => {
-    if (!state.resumeKey || !isFinite(vid.duration) || !vid.duration) return;
+    if (!isFinite(vid.duration) || !vid.duration) return;
+    // Marque « vu » sur Trakt à ~90 % (avant le générique, que personne ne regarde).
+    if (state.nowMeta && !state.scrobbled && vid.currentTime / vid.duration >= 0.9) {
+      state.scrobbled = true;
+      if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
+    }
+    if (!state.resumeKey) return;
     const now = Date.now();
     if (now - lastResumeSave < 5000) return;
     lastResumeSave = now;

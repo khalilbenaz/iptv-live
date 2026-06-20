@@ -635,6 +635,19 @@ async function ktvTraktPinConnect() {
     ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings();
   } catch (e) { alert('Erreur : ' + e.message); }
 }
+// Déduit les métadonnées Trakt depuis la clé de reprise + le titre affiché
+// (couvre aussi les lectures lancées depuis « Reprendre » / hero d'accueil).
+function ktvMetaFromPlay(resumeKey, title) {
+  if (!resumeKey) return null;
+  const type = String(resumeKey).split(':')[0];
+  if (type === 'movie') return { type: 'movie', title, year: yearOf(title) };
+  if (type === 'series') {
+    const m = String(title || '').match(/^(.*?)\s*·?\s*S\s*(\d+)\s*E\s*(\d+)/i);
+    if (m) return { type: 'episode', showTitle: m[1].trim(), season: Number(m[2]), episode: Number(m[3]) };
+    return { type: 'episode', showTitle: title };
+  }
+  return null;
+}
 async function ktvTraktOnFinished(meta) {
   if (!meta || !ktvSetting('traktScrobble') || !ktvTraktConnected()) return;
   try {
