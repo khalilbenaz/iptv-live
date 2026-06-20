@@ -209,6 +209,7 @@ async function connect() {
       window.api.setProviderEpg(`${apiBase()}/xmltv.php?username=${encodeURIComponent(usr)}&password=${encodeURIComponent(pwd)}`);
     } catch {}
     await loadCategories();
+    try { if (typeof ktvApplySources === 'function') await ktvApplySources(); } catch {}
     updateAcctChip();
     buildHome();
     $('login').classList.add('hidden');
@@ -282,6 +283,8 @@ function showView(name) {
 }
 
 function onSearch() {
+  // Recherche globale (chaînes + films + séries + EPG) gérée par features.js.
+  if (typeof ktvSearchInput === 'function') return ktvSearchInput();
   if (state.view === 'live') renderLiveGrid();
   else if (state.view === 'movies') renderMovies();
   else if (state.view === 'series') renderSeries();
@@ -471,7 +474,8 @@ function renderMovies() {
   for (const m of items.slice(0, 600)) {
     frag.appendChild(posterCard({
       title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
-      onClick: () => playMovie(m),
+      onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)),
+      tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
       onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); }
     }));
   }
@@ -482,6 +486,7 @@ function playMovie(m) {
   const ext = m.container_extension || 'mp4';
   pushRecent({ type: 'movie', id: m.stream_id, name: m.name, icon: m.stream_icon || m.cover, ext });
   playMedia(vodUrl(m.stream_id, ext), m.name || 'Film', false, '🎬 Films', 'movie:' + m.stream_id);
+  state.nowMeta = { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : ''), tmdbId: m._tmdbId };
 }
 
 /* ---------- SÉRIES ---------- */
@@ -519,7 +524,7 @@ function renderSeries() {
   for (const s of items.slice(0, 600)) {
     frag.appendChild(posterCard({
       title: s.name, cover: s.cover || s.stream_icon, rating: s.rating,
-      onClick: () => openSeries(s)
+      onClick: () => openSeries(s), tmdb: { type: 'tv', title: s.name }
     }));
   }
   grid.appendChild(frag);
@@ -540,6 +545,7 @@ async function openSeries(s) {
     curSeries.episodes = (info && info.episodes) || {};
     const plot = (info && info.info && (info.info.plot || info.info.description)) || '';
     $('seriesPlot').textContent = plot || 'Aucune description.';
+    if (typeof ktvEnrichSeriesModal === 'function') ktvEnrichSeriesModal(curSeries, info);
     const seasons = Object.keys(curSeries.episodes).sort((a, b) => Number(a) - Number(b));
     if (!seasons.length) { $('episodeList').innerHTML = '<li class="rec-empty">Aucun épisode.</li>'; return; }
     $('seasonSelect').innerHTML = seasons.map((n) => `<option value="${escapeHtml(n)}">Saison ${escapeHtml(n)}</option>`).join('');
@@ -586,6 +592,7 @@ function playEpisodeAt(q) {
   pushRecent({ type: 'series', id: ep.id, name: label, icon: q.cover, ext });
   $('seriesModal').classList.add('hidden');
   playMedia(seriesUrl(ep.id, ext), label, false, '🎞️ Séries', 'series:' + ep.id);
+  state.nowMeta = { type: 'episode', showTitle: q.name, season: Number(q.season), episode: Number(ep.episode_num) };
   state.playQueue = q; // après playMedia (qui réinitialise la file)
 }
 
@@ -617,7 +624,7 @@ function downloadSeries() {
 }
 
 /* ---------- Carte affiche (films/séries) ---------- */
-function posterCard({ title, cover, rating, onClick, onDownload }) {
+function posterCard({ title, cover, rating, onClick, onDownload, tmdb }) {
   const card = document.createElement('div');
   card.className = 'poster';
   const img = document.createElement('div');
@@ -643,6 +650,7 @@ function posterCard({ title, cover, rating, onClick, onDownload }) {
   t.className = 'p-title'; t.textContent = title || '—';
   card.appendChild(img); card.appendChild(t);
   card.onclick = onClick;
+  if (tmdb && typeof ktvPosterEnrich === 'function') ktvPosterEnrich(card, tmdb);
   return card;
 }
 
@@ -714,18 +722,22 @@ async function fillGuideRow(c, row) {
   if (!progs.length) { slot.innerHTML = '<span class="muted">Pas de programme</span>'; return; }
   const now = Date.now() / 1000;
   slot.innerHTML = '';
+  const canArch = typeof chHasArchive === 'function' && chHasArchive(c);
   for (const p of progs.slice(0, 6)) {
     const live = p.st <= now && now < (p.en || p.st);
+    const past = (p.en || p.st) <= now;
+    const archive = past && canArch;
     const block = document.createElement('div');
-    block.className = 'g-prog' + (live ? ' live' : '');
+    block.className = 'g-prog' + (live ? ' live' : '') + (archive ? ' archive' : '');
     const span = (p.en && p.en > p.st) ? Math.round((p.en - p.st) / 60) : 0;
     block.style.flex = span ? Math.max(1, Math.min(6, span / 30)) : 1;
-    block.innerHTML = `<span class="gp-t">${escapeHtml(p.title)}</span><span class="gp-h">${epgTime(p.st)}</span>`;
+    block.innerHTML = `<span class="gp-t">${archive ? '⏪ ' : ''}${escapeHtml(p.title)}</span><span class="gp-h">${epgTime(p.st)}</span>`;
     if (live && p.en > p.st) {
       const pct = Math.round(((now - p.st) / (p.en - p.st)) * 100);
       block.innerHTML += `<div class="gp-bar"><i style="width:${pct}%"></i></div>`;
     }
-    block.onclick = () => play(c);
+    block.title = archive ? '⏪ Revoir (catch-up)' : '';
+    block.onclick = archive ? (() => ktvPlayArchive(c, p)) : (() => play(c));
     slot.appendChild(block);
   }
 }
@@ -794,13 +806,14 @@ async function fillCategoryRows(cats, rows) {
         const items = (state.vod || []).filter((m) => String(m.category_id) === String(c.id)).slice(0, 20);
         if (items.length) setRowCards(row, items.map((m) => posterCard({
           title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
-          onClick: () => playMovie(m),
+          onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)),
+          tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
           onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); }
         }))); else row.remove();
       } else {
         await loadSeriesData();
         const items = (state.series || []).filter((s) => String(s.category_id) === String(c.id)).slice(0, 20);
-        if (items.length) setRowCards(row, items.map((s) => posterCard({ title: s.name, cover: s.cover || s.stream_icon, rating: s.rating, onClick: () => openSeries(s) }))); else row.remove();
+        if (items.length) setRowCards(row, items.map((s) => posterCard({ title: s.name, cover: s.cover || s.stream_icon, rating: s.rating, onClick: () => openSeries(s), tmdb: { type: 'tv', title: s.name } }))); else row.remove();
       }
     } catch { row.remove(); }
   }
@@ -822,13 +835,13 @@ async function fillHomeContent(moviesRow, seriesRow) {
   try {
     await loadVodData();
     const recent = [...(state.vod || [])].sort((a, b) => (Number(b.added) || 0) - (Number(a.added) || 0)).slice(0, 18);
-    if (recent.length) setRowCards(moviesRow, recent.map((m) => posterCard({ title: m.name, cover: m.stream_icon || m.cover, rating: m.rating, onClick: () => playMovie(m) })));
+    if (recent.length) setRowCards(moviesRow, recent.map((m) => posterCard({ title: m.name, cover: m.stream_icon || m.cover, rating: m.rating, onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)), tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') } })));
     else moviesRow.remove();
   } catch { moviesRow.remove(); }
   try {
     await loadSeriesData();
     const recent = [...(state.series || [])].sort((a, b) => (Number(b.last_modified) || 0) - (Number(a.last_modified) || 0)).slice(0, 18);
-    if (recent.length) setRowCards(seriesRow, recent.map((s) => posterCard({ title: s.name, cover: s.cover || s.stream_icon, rating: s.rating, onClick: () => openSeries(s) })));
+    if (recent.length) setRowCards(seriesRow, recent.map((s) => posterCard({ title: s.name, cover: s.cover || s.stream_icon, rating: s.rating, onClick: () => openSeries(s), tmdb: { type: 'tv', title: s.name } })));
     else seriesRow.remove();
   } catch { seriesRow.remove(); }
 }
@@ -918,6 +931,7 @@ function destroyPlayer() {
 function playMedia(url, title, isLive, crumb, resumeKey) {
   state.current = null;
   state.playQueue = null;
+  state.nowMeta = null;
   state.resumeKey = resumeKey || null;
   resetPlayerTools();
   enterPlayer(crumb || title, false);
@@ -936,7 +950,7 @@ function playMedia(url, title, isLive, crumb, resumeKey) {
     $('overlay').textContent = 'Lecture impossible : format non supporté par le lecteur (souvent .mkv/.avi). Ouvre le fichier dans VLC.';
   };
   if (/\.m3u8(\?|$)/i.test(url) && window.Hls && Hls.isSupported()) {
-    const hls = new Hls();
+    const hls = new Hls(typeof ktvHlsConfig === 'function' ? ktvHlsConfig() : {});
     hls.loadSource(url);
     hls.attachMedia(v);
     hls.on(Hls.Events.MANIFEST_PARSED, () => v.play().catch(() => {}));
@@ -956,7 +970,7 @@ function epgTime(s) { const d = new Date((Number(s) || 0) * 1000); return isNaN(
 async function getChannelEpg(channel) {
   if (state.epgCache[channel.stream_id]) return state.epgCache[channel.stream_id];
   let result = null;
-  try {
+  if (!channel._noXtreamEpg) try {
     const data = await xtreamApi('action=get_short_epg&stream_id=' + channel.stream_id + '&limit=6');
     const items = (((data && data.epg_listings) || [])
       .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
@@ -1016,6 +1030,7 @@ async function play(channel) {
   state.current = channel;
   state.playQueue = null;
   state.resumeKey = null;
+  state.nowMeta = null;
   resetPlayerTools();
   pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon, cat: channel.category_id });
   enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
@@ -1025,6 +1040,7 @@ async function play(channel) {
   $('recBtn').disabled = false;
   $('relayBtn').disabled = false;
   $('scheduleBtn').disabled = false;
+  if (typeof ktvUpdateCatchupBtn === 'function') ktvUpdateCatchupBtn(channel);
   if (state.relaying) stopRelay();
   document.querySelectorAll('.chan-card').forEach((c) => c.classList.toggle('active', c.dataset.id == channel.stream_id));
   buildPlayerSidebar(channel);
@@ -1066,7 +1082,7 @@ async function needsTranscode(channel) {
   if (id in resCache) return resCache[id];
   let decision = false;
   try {
-    const r = await window.api.probeStream(streamUrl(id, 'ts'));
+    const r = await window.api.probeStream(typeof liveTs === 'function' ? liveTs(channel) : streamUrl(id, 'ts'));
     if (r && r.height) decision = r.height >= 1600;    // 2160p (et marge) = vrai UHD
   } catch {}
   resCache[id] = decision;
@@ -1078,13 +1094,15 @@ async function needsTranscode(channel) {
 function loadDirect(channel) {
   destroyPlayer();
   const v = $('video');
-  const tsUrl = streamUrl(channel.stream_id, 'ts');
-  const hlsUrl = streamUrl(channel.stream_id, 'm3u8');
-  if (window.mpegts && mpegts.isSupported()) {
+  const tsUrl = typeof liveTs === 'function' ? liveTs(channel) : streamUrl(channel.stream_id, 'ts');
+  const hlsUrl = typeof liveHls === 'function' ? liveHls(channel) : streamUrl(channel.stream_id, 'm3u8');
+  // Les chaînes M3U (URL directe, souvent .m3u8) passent directement par HLS/natif.
+  if (window.mpegts && mpegts.isSupported() && !channel._url) {
     const p = mpegts.createPlayer(
       { type: 'mpegts', isLive: true, url: tsUrl },
-      { enableWorker: true, liveBufferLatencyChasing: false, liveSync: false, lazyLoad: false,
-        autoCleanupSourceBuffer: true, stashInitialSize: 4 * 1024 * 1024, enableStashBuffer: true }
+      typeof ktvMpegtsConfig === 'function' ? ktvMpegtsConfig()
+        : { enableWorker: true, liveBufferLatencyChasing: false, liveSync: false, lazyLoad: false,
+            autoCleanupSourceBuffer: true, stashInitialSize: 4 * 1024 * 1024, enableStashBuffer: true }
     );
     p.attachMediaElement(v);
     p.load();
@@ -1103,7 +1121,7 @@ async function loadTranscodedLive(channel) {
   $('overlay').classList.remove('hidden');
   $('overlay').textContent = '⚙️ Préparation 4K (transcodage matériel)…';
   try {
-    const r = await window.api.liveTranscodeTune(streamUrl(channel.stream_id, 'ts'), channel.name);
+    const r = await window.api.liveTranscodeTune(typeof liveTs === 'function' ? liveTs(channel) : streamUrl(channel.stream_id, 'ts'), channel.name);
     if (state.current !== channel) return;          // l'utilisateur a déjà zappé
     if (!r || !r.local) throw new Error((r && r.error) || 'relais indisponible');
     $('overlay').classList.add('hidden');
@@ -1122,6 +1140,7 @@ function watchRecordingLive(channel) {
   state.current = channel;
   state.playQueue = null;
   state.resumeKey = null;
+  state.nowMeta = null;
   resetPlayerTools();
   pushRecent({ type: 'live', id: channel.stream_id, name: channel.name, icon: channel.stream_icon, cat: channel.category_id });
   enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
@@ -1162,7 +1181,7 @@ function playHls(url, retries = 6) {
   destroyPlayer();
   const v = $('video');
   if (window.Hls && Hls.isSupported()) {
-    const hls = new Hls({
+    const hls = new Hls(typeof ktvHlsConfig === 'function' ? ktvHlsConfig() : {
       liveSyncDurationCount: 6,        // ~12 s derrière le bord live (était 4 ≈ 8 s)
       liveMaxLatencyDurationCount: 12, // tolère plus de retard avant de sauter
       maxBufferLength: 30,             // jusqu'à 30 s de tampon en avant
@@ -1275,7 +1294,7 @@ async function toggleRecord() {
     btn.disabled = true;
     btn.textContent = '⏺ Démarrage…';
     try {
-      const url = streamUrl(state.current.stream_id, 'ts');
+      const url = typeof liveTs === 'function' ? liveTs(state.current) : streamUrl(state.current.stream_id, 'ts');
       const res = await window.api.recordStart(url, state.current.name);
       beginRecUI(res, true);
     } catch (e) {
@@ -1494,7 +1513,7 @@ async function confirmSchedule() {
   try { plan = computeSchedule(); }
   catch (e) { $('schError').textContent = e.message; return; }
 
-  const url = streamUrl(state.current.stream_id, 'ts');
+  const url = typeof liveTs === 'function' ? liveTs(state.current) : streamUrl(state.current.stream_id, 'ts');
   const name = state.current.name || ('Chaîne ' + state.current.stream_id);
   const btn = $('schConfirm');
   btn.disabled = true; const old = btn.textContent; btn.textContent = '…';
@@ -1568,7 +1587,7 @@ async function toggleRelay() {
   btn.disabled = true;
   btn.textContent = '📡 Démarrage…';
   try {
-    const url = streamUrl(state.current.stream_id, 'ts');
+    const url = typeof liveTs === 'function' ? liveTs(state.current) : streamUrl(state.current.stream_id, 'ts');
     const r = await window.api.relayStart(url, state.current.name);
     state.relaying = true;
     state.relayLan = r.lan;
@@ -1677,6 +1696,7 @@ async function buildSettings() {
   };
 
   renderHomeCatPicker();
+  if (typeof ktvBuildSettingsExtras === 'function') ktvBuildSettingsExtras();
 }
 
 // Sélecteur des catégories affichées sur l'accueil (Live / Films / Séries)
@@ -2106,6 +2126,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Enchaînement automatique de l'épisode suivant
   vid.addEventListener('ended', () => {
     clearResume(state.resumeKey);
+    if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
     const q = state.playQueue;
     if (q && q.idx + 1 < q.eps.length) playEpisodeAt({ ...q, idx: q.idx + 1 });
   });
@@ -2331,6 +2352,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // État initial de la pastille des enregistrements programmés
   refreshScheduleList();
+
+  // Initialisation des fonctionnalités additionnelles (features.js)
+  if (typeof initFeatures === 'function') initFeatures();
 
   // Reconnexion automatique au lancement si des identifiants sont mémorisés
   if (autoConnect) connect();

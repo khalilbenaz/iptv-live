@@ -38,7 +38,10 @@ contextBridge.exposeInMainWorld('api', {
   listDownloads: () => ipcRenderer.invoke('list-downloads'),
   downloadsDir: () => ipcRenderer.invoke('downloads-dir'),
   epgLookup: (name, tvgId) => ipcRenderer.invoke('epg-lookup', { name, tvgId }),
+  epgSearch: (q, limit) => ipcRenderer.invoke('epg-search', { q, limit }),
   setProviderEpg: (url) => ipcRenderer.invoke('set-provider-epg', { url }),
   xmltvStatus: () => ipcRenderer.invoke('xmltv-status'),
-  xmltvConfig: (cfg) => ipcRenderer.invoke('xmltv-config', cfg)
+  xmltvConfig: (cfg) => ipcRenderer.invoke('xmltv-config', cfg),
+  m3uFetch: (url) => ipcRenderer.invoke('m3u-fetch', { url }),
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url })
 });

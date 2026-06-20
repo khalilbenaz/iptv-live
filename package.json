@@ -35,6 +35,7 @@
       "preload.js",
       "index.html",
       "renderer.js",
+      "features.js",
       "styles.css",
       "node_modules/hls.js/dist/hls.min.js",
       "node_modules/mpegts.js/dist/mpegts.js"

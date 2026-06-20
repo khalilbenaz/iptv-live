@@ -152,6 +152,14 @@
           </div>
         </section>
 
+        <!-- RECHERCHE GLOBALE -->
+        <section class="view" id="view-search">
+          <div class="view-panel">
+            <h2 class="view-h">🔍 Résultats de recherche</h2>
+            <div id="searchResults" class="search-results"></div>
+          </div>
+        </section>
+
         <!-- PLAYER -->
         <section class="view" id="view-player">
           <div class="player-top">
@@ -161,6 +169,7 @@
               <button id="btnAudio" class="icon-btn hidden" title="Piste audio (a)">🔊</button>
               <button id="btnSubs" class="icon-btn hidden" title="Sous-titres (c)">💬</button>
               <button id="btnPip" class="icon-btn hidden" title="Picture-in-Picture (p)">🗗</button>
+              <button id="btnStats" class="icon-btn hidden" title="Statistiques réseau">📊</button>
               <button id="btnFs" class="icon-btn" title="Plein écran (f)">⛶</button>
               <button id="sidebarToggle" class="icon-btn hidden" title="Afficher/masquer les chaînes">☰ Chaînes</button>
             </div>
@@ -171,6 +180,7 @@
               <div id="overlay" class="overlay">Sélectionnez un contenu</div>
               <div id="resumeToast" class="resume-toast hidden"></div>
               <div id="trackMenu" class="track-menu hidden"></div>
+              <div id="statsOverlay" class="stats-overlay hidden"></div>
             </div>
             <aside id="chanSidebar" class="chan-sidebar hidden">
               <div class="cs-head">
@@ -189,6 +199,7 @@
               <span id="nowEpg" class="now-epg"></span>
             </div>
             <div class="actions" id="liveActions">
+              <button id="catchupBtn" class="hidden">⏪ Revoir</button>
               <button id="relayBtn" disabled>📡 Restreamer</button>
               <button id="recBtn" disabled>⏺ Enregistrer</button>
               <button id="scheduleBtn" disabled><span class="sch-ico">📅</span> <span>Programmer</span><span id="schCount" class="sch-badge hidden">0</span></button>
@@ -331,8 +342,66 @@
     </div>
   </div>
 
+  <!-- MODAL CATCH-UP / REVOIR -->
+  <div id="catchupModal" class="modal hidden">
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <h2>⏪ Revoir — <span id="catchupChan">—</span></h2>
+        <button id="catchupClose" class="modal-x">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">Rediffusions disponibles (catch-up) pour cette chaîne. Clique sur un programme pour le revoir.</p>
+        <ul id="catchupList" class="rec-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DÉTAIL FILM (TMDB) -->
+  <div id="movieModal" class="modal hidden">
+    <div class="modal-card wide">
+      <div id="movieBackdrop" class="movie-backdrop"></div>
+      <div class="modal-head">
+        <h2 id="movieTitle">Film</h2>
+        <button id="movieClose" class="modal-x">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="series-hero">
+          <div class="series-cover" id="movieCover"></div>
+          <div class="series-meta">
+            <div id="movieMeta" class="movie-meta"></div>
+            <p id="moviePlot" class="hint"></p>
+            <p id="movieCast" class="hint"></p>
+            <div class="series-actions">
+              <button id="moviePlay" class="copy" style="margin-top:0;">▶ Regarder</button>
+              <button id="movieDownload" class="ghost">⬇ Télécharger</button>
+              <button id="movieWatchlist" class="ghost hidden">🅣 Watchlist</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LIAISON TRAKT -->
+  <div id="traktModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>🅣 Connecter Trakt</h2>
+        <button id="traktClose" class="modal-x">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="hint">Va sur la page d'activation et saisis ce code :</p>
+        <div class="trakt-code" id="traktCode">—</div>
+        <div class="row"><span class="k">Page</span><span class="v" id="traktUrl">trakt.tv/activate</span></div>
+        <button id="traktOpen" class="copy">🌍 Ouvrir la page Trakt</button>
+        <div id="traktMsg" class="hint" style="margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="node_modules/hls.js/dist/hls.min.js"></script>
   <script src="node_modules/mpegts.js/dist/mpegts.js"></script>
   <script src="renderer.js"></script>
+  <script src="features.js"></script>
 </body>
 </html>

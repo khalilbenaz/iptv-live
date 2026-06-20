@@ -137,7 +137,7 @@ const XMLTV_DEFAULT = [
 ];
 // index = nom normalisé -> [{id,pl}] (candidats) ; byId = tvg-id minuscule -> pl ;
 // byIdName = nom normalisé du tvg-id -> [{id,pl}]
-const xmltv = { index: new Map(), byId: new Map(), byIdName: new Map(), loadedAt: 0, loading: null };
+const xmltv = { index: new Map(), byId: new Map(), byIdName: new Map(), names: new Map(), loadedAt: 0, loading: null };
 let providerEpgUrl = '';   // EPG complet du fournisseur Xtream (xmltv.php), défini après connexion
 
 const SUP_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
@@ -236,7 +236,9 @@ async function buildXmltv(sources) {
     for (const n of (names.get(id) || [])) push(index, xmlNorm(n), id, pl);
     push(byIdName, xmlNorm(id.split('.')[0]), id, pl);
   }
-  return { index, byId, byIdName };
+  const nameById = new Map();      // tvg-id -> nom d'affichage (1er) ; pour la recherche EPG
+  for (const [id, arr] of names) { if (arr && arr.length) nameById.set(id, arr[0]); }
+  return { index, byId, byIdName, names: nameById };
 }
 function ensureXmltv() {
   if (getSettings().xmltvEnabled === false) return Promise.resolve();
@@ -245,7 +247,7 @@ function ensureXmltv() {
   // l'EPG du fournisseur en priorité (couvre tes chaînes exactes), puis les sources publiques
   const sources = [providerEpgUrl, ...(getSettings().xmltvSources || XMLTV_DEFAULT)].filter(Boolean);
   xmltv.loading = buildXmltv(sources)
-    .then((r) => { if (r.index.size || r.byId.size) { xmltv.index = r.index; xmltv.byId = r.byId; xmltv.byIdName = r.byIdName; xmltv.loadedAt = Date.now(); } })
+    .then((r) => { if (r.index.size || r.byId.size) { xmltv.index = r.index; xmltv.byId = r.byId; xmltv.byIdName = r.byIdName; xmltv.names = r.names || new Map(); xmltv.loadedAt = Date.now(); } })
     .catch(() => {})
     .finally(() => { xmltv.loading = null; });
   return xmltv.loading;
@@ -330,6 +332,46 @@ ipcMain.handle('xmltv-config', (e, { enabled, sources } = {}) => {
   xmltv.index = new Map(); xmltv.byId = new Map(); xmltv.byIdName = new Map(); xmltv.loadedAt = 0;  // forcera un rechargement
   if (s.xmltvEnabled !== false) ensureXmltv();
   return { ok: true };
+});
+
+// Recherche dans l'EPG : renvoie les programmes (en cours / à venir) dont le
+// titre contient la requête, tous canaux confondus (guide externe XMLTV).
+ipcMain.handle('epg-search', async (e, { q, limit } = {}) => {
+  if (getSettings().xmltvEnabled === false) return [];
+  try { await ensureXmltv(); } catch {}
+  const query = String(q || '').trim().toLowerCase();
+  if (query.length < 2) return [];
+  const cap = Math.min(Number(limit) || 60, 200);
+  const now = Date.now() / 1000;
+  const out = [];
+  outer:
+  for (const [id, pl] of xmltv.byId) {
+    const name = xmltv.names.get(id) || id;
+    for (const p of pl) {
+      if ((p.en || p.st) < now) continue;          // déjà terminé
+      if (p.title && p.title.toLowerCase().includes(query)) {
+        out.push({ channel: name, title: p.title, st: p.st, en: p.en });
+        if (out.length >= cap * 4) break outer;     // assez de candidats
+      }
+    }
+  }
+  out.sort((a, b) => a.st - b.st);
+  return out.slice(0, cap);
+});
+
+// Récupère et décompresse une playlist M3U (sources multiples / fusion).
+ipcMain.handle('m3u-fetch', async (e, { url } = {}) => {
+  try {
+    const buf = await fetchBuf(url, BROWSER_UA);
+    const text = (/\.gz($|\?)/i.test(url) ? zlib.gunzipSync(buf) : buf).toString('utf8');
+    return { ok: true, text };
+  } catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+});
+
+// Ouvre une URL dans le navigateur par défaut (liaison Trakt, etc.).
+ipcMain.handle('open-external', (e, { url } = {}) => {
+  try { if (url) shell.openExternal(url); return { ok: true }; }
+  catch (err) { return { ok: false, error: String(err) }; }
 });
 
 app.whenReady().then(() => {
