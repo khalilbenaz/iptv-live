@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-const { spawn, execFile } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 
 // Au démarrage : tue les ffmpeg orphelins d'une instance KTV précédente
 // (relais/enregistrement laissés vivants après un crash ou un force-quit).
@@ -805,6 +805,49 @@ function stopRelay() {
 
 // Lance (ou relance) le ffmpeg du relais. Reconnexion auto si le flux fournisseur
 // hoquette, et redémarrage si ffmpeg meurt malgré tout (tant que le relais est voulu actif).
+// Choisit (une seule fois) le meilleur encodeur H.264 disponible selon la
+// plateforme/GPU : on teste chaque candidat par un mini-encodage et on garde
+// le 1er qui marche. Repli logiciel libx264 garanti.
+let chosenVcodec = null;
+function detectEncoder() {
+  if (chosenVcodec) return chosenVcodec;
+  const candidates = process.platform === 'darwin'
+    ? ['h264_videotoolbox']
+    : process.platform === 'win32'
+      ? ['h264_nvenc', 'h264_qsv', 'h264_amf', 'libx264']
+      : ['h264_nvenc', 'h264_qsv', 'h264_vaapi', 'libx264'];
+  for (const enc of candidates) {
+    try {
+      execFileSync(ffmpegPath, ['-hide_banner', '-f', 'lavfi', '-i',
+        'testsrc=size=320x240:rate=10', '-t', '0.2', '-c:v', enc, '-f', 'null', '-'],
+        { stdio: 'ignore', timeout: 8000 });
+      chosenVcodec = enc; break;
+    } catch {}
+  }
+  if (!chosenVcodec) chosenVcodec = 'libx264';
+  return chosenVcodec;
+}
+
+// Décodage accéléré du flux d'entrée (HEVC 10 bits) selon la plateforme.
+function decodeAccelArgs() {
+  if (process.platform === 'darwin') return ['-hwaccel', 'videotoolbox'];
+  return ['-hwaccel', 'auto'];     // d3d11va/cuda/qsv… ou logiciel en repli
+}
+
+// Arguments d'encodage vidéo selon l'encodeur retenu (≈ 20 Mbit/s, temps réel).
+function transcodeVideoArgs() {
+  const enc = detectEncoder();
+  const base = ['-c:v', enc, '-pix_fmt', 'yuv420p'];
+  switch (enc) {
+    case 'h264_videotoolbox': return [...base, '-b:v', '20M', '-realtime', '1'];
+    case 'h264_nvenc':        return [...base, '-preset', 'p4', '-tune', 'll', '-b:v', '20M', '-maxrate', '25M', '-bufsize', '40M'];
+    case 'h264_qsv':          return [...base, '-preset', 'veryfast', '-b:v', '20M', '-maxrate', '25M'];
+    case 'h264_amf':          return [...base, '-quality', 'speed', '-b:v', '20M'];
+    case 'h264_vaapi':        return [...base, '-b:v', '20M'];
+    default:                  return [...base, '-preset', 'veryfast', '-b:v', '20M', '-maxrate', '25M', '-bufsize', '40M']; // libx264
+  }
+}
+
 function spawnRelayFfmpeg() {
   const input = [
     '-hide_banner', '-loglevel', 'error',
@@ -816,13 +859,11 @@ function spawnRelayFfmpeg() {
     '-reconnect_delay_max', '5',
     '-rw_timeout', '15000000',
   ];
-  // Mode transcodage matériel (chaînes 4K HEVC 10 bits que le lecteur ne décode
-  // pas) : décodage + encodage H.264 via VideoToolbox (M1/M2/M3). Sinon copie.
+  // Mode transcodage matériel (chaînes 4K que le lecteur ne décode pas) :
+  // décodage + encodage H.264 accéléré par le GPU (VideoToolbox sur Mac,
+  // NVENC/QSV/AMF sur Windows, sinon libx264 logiciel). Sinon copie.
   const codec = relay.transcode
-    ? ['-hwaccel', 'videotoolbox',
-       '-i', relay.url,
-       '-c:v', 'h264_videotoolbox', '-b:v', '20M', '-realtime', '1', '-pix_fmt', 'yuv420p',
-       '-c:a', 'aac', '-b:a', '128k', '-ac', '2']
+    ? [...decodeAccelArgs(), '-i', relay.url, ...transcodeVideoArgs(), '-c:a', 'aac', '-b:a', '128k', '-ac', '2']
     : ['-i', relay.url, '-c', 'copy'];
   const args = [
     ...input,

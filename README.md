@@ -1,8 +1,10 @@
 # KTV
 
-Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** — interface moderne par sections : **Live TV, Films (VOD), Séries, Guide TV (EPG)**, enregistrement, restream et téléchargements.
+Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** — interface moderne par sections : **Live TV, Films (VOD), Séries, Guide TV (EPG)**, enregistrement, restream et téléchargements.
 
-**▶︎ [Télécharger la dernière version (macOS Apple Silicon)](https://github.com/khalilbenaz/ktv/releases/latest)**
+**▶︎ [Télécharger la dernière version (macOS / Windows)](https://github.com/khalilbenaz/ktv/releases/latest)**
+
+> Les binaires macOS (`KTV-macos-arm64.zip`) et Windows (`KTV-windows-x64.zip`) sont construits automatiquement à chaque version par GitHub Actions.
 
 > Anciennement « IPTV Live ». Le dépôt et l'application ont été renommés **KTV** (bundle id `com.kba.ktv`).
 
