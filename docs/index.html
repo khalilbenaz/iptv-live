@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KTV — Lecteur Xtream, enregistrement & partage</title>
-  <meta name="description" content="Lecteur Xtream Codes pour macOS & Windows : live TV, vraie 4K, enregistrement programmé, restream LAN/public et export WhatsApp." />
-  <meta property="og:title" content="KTV" />
-  <meta property="og:description" content="Lecteur Xtream live TV (macOS & Windows) : vraie 4K, enregistrement programmé, restream et export WhatsApp." />
+  <title>KTV — Lecteur Xtream pour macOS & Windows</title>
+  <meta name="description" content="KTV : lecteur Xtream Codes pour macOS & Windows. Live TV, vraie 4K, films & séries, guide EPG, enregistrement programmé, restream, lien public et export WhatsApp." />
+  <meta property="og:title" content="KTV — Lecteur Xtream" />
+  <meta property="og:description" content="Live TV, vraie 4K automatique, enregistrement programmé, restream, lien public et export WhatsApp — macOS & Windows." />
   <meta property="og:type" content="website" />
   <link rel="icon" href="icon.png" />
   <meta property="og:image" content="https://khalilbenaz.github.io/ktv/icon.png" />
@@ -21,47 +21,50 @@
       color: var(--txt); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-font-smoothing: antialiased; line-height: 1.6;
     }
-    .wrap { max-width: 960px; margin: 0 auto; padding: 0 22px; }
-    header { text-align: center; padding: 80px 0 50px; }
-    .logo-img { width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 22px; }
+    a { color: var(--accent2); }
+    header { text-align: center; padding: 80px 0 40px; }
+    .logo-img { width: 120px; height: 120px; border-radius: 26px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
     h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin: 12px 0 6px; letter-spacing: -.02em; }
-    .tagline { color: var(--muted); font-size: clamp(1rem, 3vw, 1.25rem); margin: 0 auto 26px; max-width: 640px; }
+    .tagline { color: var(--muted); font-size: clamp(1rem, 3vw, 1.2rem); margin: 0 auto 24px; max-width: 660px; }
     .ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
     .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff;
-      text-decoration: none; font-weight: 700; padding: 15px 28px; border-radius: 12px; font-size: 1.05rem;
+      text-decoration: none; font-weight: 700; padding: 14px 26px; border-radius: 12px; font-size: 1.02rem;
       box-shadow: 0 12px 30px rgba(255,106,44,.3); transition: transform .08s, filter .15s; }
     .cta.win { background: var(--panel2); border: 1px solid var(--line); box-shadow: none; }
     .cta:hover { filter: brightness(1.08); } .cta:active { transform: scale(.98); }
     .sub-links { margin-top: 18px; font-size: .9rem; }
-    .sub-links a { color: var(--accent2); text-decoration: none; margin: 0 8px; }
+    .sub-links a { text-decoration: none; margin: 0 8px; }
     .sub-links a:hover { text-decoration: underline; }
     .badge { display: inline-block; background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
       border-radius: 999px; padding: 4px 12px; font-size: .8rem; margin-bottom: 18px; }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 40px 0; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
-    .card .ico { font-size: 28px; } .card h3 { margin: 12px 0 6px; font-size: 1.1rem; }
-    .card p { color: var(--muted); margin: 0; font-size: .95rem; }
+    section { padding: 26px 0; }
+    .sec-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 18px; }
+    .sec-head h2 { font-size: 1.5rem; margin: 0; }
+    .sec-head .k { color: var(--accent); font-weight: 800; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .card .ico { font-size: 24px; } .card h3 { margin: 10px 0 6px; font-size: 1.04rem; }
+    .card p { color: var(--muted); margin: 0; font-size: .92rem; }
 
-    section { padding: 30px 0; }
-    h2 { font-size: 1.6rem; margin: 0 0 16px; }
     .steps { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 8px 24px; }
-    .steps li { margin: 14px 0; color: var(--muted); }
+    .steps li { margin: 12px 0; color: var(--muted); }
     .steps b { color: var(--txt); }
     .os-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     code { background: #0e1320; color: var(--accent2); padding: 2px 7px; border-radius: 6px; font-size: .9em; word-break: break-all; }
-    .note { color: var(--muted); font-size: .9rem; border-left: 3px solid var(--accent2); padding-left: 14px; margin: 18px 0; }
+    .note { color: var(--muted); font-size: .9rem; border-left: 3px solid var(--accent); padding-left: 14px; margin: 18px 0; }
     footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 50px 0 60px; border-top: 1px solid var(--line); margin-top: 40px; }
-    footer a { color: var(--accent2); text-decoration: none; }
+    footer a { text-decoration: none; }
   </style>
 </head>
 <body>
   <header>
     <div class="wrap">
-      <img class="logo-img" src="icon.png" alt="KTV" width="128" height="128" />
+      <img class="logo-img" src="icon.png" alt="KTV" width="120" height="120" />
       <h1>KTV</h1>
-      <p class="tagline">Lecteur Xtream Codes pour macOS &amp; Windows — regarde en direct (vraie 4K), enregistre, programme, restreame et partage tes chaînes.</p>
-      <span class="badge">macOS (Apple Silicon) · Windows (x64)</span>
+      <p class="tagline">Lecteur Xtream Codes pour macOS &amp; Windows — live TV en vraie 4K, films &amp; séries, guide EPG, enregistrement programmé, restream et partage.</p>
+      <span class="badge">macOS (Apple Silicon) · Windows (x64) · open-source MIT</span>
       <div class="ctas">
         <a class="cta" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-macos-arm64.zip"> Télécharger pour macOS</a>
         <a class="cta win" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-windows-x64.zip">⊞ Télécharger pour Windows</a>
@@ -69,25 +72,61 @@
       <div class="sub-links">
         <a href="https://github.com/khalilbenaz/ktv">Code source</a> ·
         <a href="https://github.com/khalilbenaz/ktv/releases/latest">Dernière version</a> ·
-        <a href="https://github.com/khalilbenaz/ktv/releases">Toutes les versions</a>
+        <a href="https://github.com/khalilbenaz/ktv/releases">Historique</a>
       </div>
     </div>
   </header>
 
   <main class="wrap">
-    <div class="grid">
-      <div class="card"><div class="ico">📺</div><h3>Live TV Xtream</h3><p>Connexion Xtream Codes, navigation par catégories et qualité (8K/4K/FHD/HD), EPG, lecture fluide HLS/TS.</p></div>
-      <div class="card"><div class="ico">🎬</div><h3>Vraie 4K automatique</h3><p>Détecte les vrais flux 4K (HEVC) et les transcode en matériel (GPU) pour une lecture fluide — sans toucher aux fausses « 4K ».</p></div>
-      <div class="card"><div class="ico">⏺</div><h3>Enregistrement programmé</h3><p>Programme un enregistrement (début + durée ou heure de fin) avec arrêt automatique. Suivi en direct (durée, taille).</p></div>
-      <div class="card"><div class="ico">📡</div><h3>Restream LAN</h3><p>Une seule connexion fournisseur partagée vers tous tes appareils du réseau Wi-Fi.</p></div>
-      <div class="card"><div class="ico">🌍</div><h3>Lien public</h3><p>Crée une URL HTTPS publique (Cloudflare) pour regarder hors du réseau local.</p></div>
-      <div class="card"><div class="ico">📱</div><h3>Export WhatsApp</h3><p>Convertit en un clic vers un MP4 compatible WhatsApp (AAC-LC + 30 fps) — son garanti au partage.</p></div>
-      <div class="card"><div class="ico">🎞️</div><h3>Films &amp; Séries</h3><p>VOD et séries (saisons/épisodes) avec enchaînement automatique et téléchargements.</p></div>
-      <div class="card"><div class="ico">📼</div><h3>Mes enregistrements</h3><p>En cours, programmés et enregistrés — avec filtre par chaîne, recherche et pagination.</p></div>
-    </div>
 
     <section>
-      <h2>Installation</h2>
+      <div class="sec-head"><span class="k">Regarder</span><h2>Live, films, séries &amp; guide</h2></div>
+      <div class="grid">
+        <div class="card"><div class="ico">📺</div><h3>Live TV Xtream</h3><p>Connexion Xtream Codes, navigation par catégories et par qualité (8K/4K/FHD/HD/SD), reconnexion auto au lancement.</p></div>
+        <div class="card"><div class="ico">🎞️</div><h3>Films (VOD)</h3><p>Catalogue de films par catégorie, affiches, lecture en un clic, téléchargement possible.</p></div>
+        <div class="card"><div class="ico">📚</div><h3>Séries</h3><p>Saisons &amp; épisodes, fiche détaillée, <b>enchaînement automatique</b> de l'épisode suivant.</p></div>
+        <div class="card"><div class="ico">🗓️</div><h3>Guide TV (EPG)</h3><p>Grille des programmes en cours et à venir par catégorie, noms longs sur deux lignes.</p></div>
+        <div class="card"><div class="ico">🏠</div><h3>Accueil configurable</h3><p>Choisis les catégories affichées en rangées (Live / Films / Séries) avec un bouton « tout voir ».</p></div>
+        <div class="card"><div class="ico">🔀</div><h3>Sidebar de zapping</h3><p>Liste des chaînes de la même catégorie dans le lecteur, pour zapper sans revenir à la grille.</p></div>
+        <div class="card"><div class="ico">🔎</div><h3>Recherche &amp; favoris</h3><p>Recherche globale, favoris et « vu récemment » pour reprendre vite.</p></div>
+        <div class="card"><div class="ico">⚽</div><h3>EPG sport enrichi</h3><p>Programme des chaînes sport (beIN, Canal+, Eurosport…) complété par un service maison.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="k">Qualité</span><h2>Vraie 4K, automatiquement</h2></div>
+      <div class="grid">
+        <div class="card"><div class="ico">🎬</div><h3>Détection 4K réelle</h3><p>KTV sonde la <b>vraie résolution</b> du flux : seules les chaînes réellement ≥ 2160p sont traitées en 4K (fini les fausses « 4K » 1080p mal étiquetées).</p></div>
+        <div class="card"><div class="ico">⚡</div><h3>Transcodage matériel</h3><p>Les vraies 4K (HEVC 10 bits) sont transcodées par le GPU — VideoToolbox (Mac), NVENC/QSV/AMF (Windows) — pour une lecture fluide.</p></div>
+        <div class="card"><div class="ico">🧊</div><h3>Anti-coupure</h3><p>Tampons ajustés pour absorber les micro-coupures du fournisseur sans figer l'image.</p></div>
+        <div class="card"><div class="ico">🧠</div><h3>Mémorisé par chaîne</h3><p>La décision (4K ou non) est gardée en mémoire : sondée une seule fois, instantanée ensuite.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="k">Enregistrer</span><h2>Enregistrement &amp; programmation</h2></div>
+      <div class="grid">
+        <div class="card"><div class="ico">⏺</div><h3>Enregistrement MP4</h3><p>Enregistre une chaîne en MP4 sans ré-encodage. Fichiers sains et lisibles partout (VLC, QuickTime).</p></div>
+        <div class="card"><div class="ico">📅</div><h3>Programmation + arrêt auto</h3><p>Programme un enregistrement (début immédiat ou à l'heure, fin par durée ou heure précise). Raccourcis 15 min → 2 h et « ⚽ Match foot (2 h 30) ».</p></div>
+        <div class="card"><div class="ico">🔴</div><h3>Badge REC en direct</h3><p>Indicateur dans la barre du haut : chaîne, heure de début, durée restante, progression et <b>taille du fichier en direct</b>.</p></div>
+        <div class="card"><div class="ico">📼</div><h3>En cours · Programmés · Enregistrés</h3><p>Tout le suivi au même endroit, avec filtre par chaîne, recherche et pagination.</p></div>
+        <div class="card"><div class="ico">📱</div><h3>Export WhatsApp</h3><p>Convertit en un clic vers un MP4 compatible WhatsApp (AAC-LC + 30 fps) — son garanti au partage.</p></div>
+        <div class="card"><div class="ico">🔗</div><h3>Gestion « 1 connexion »</h3><p>Regarde la chaîne en cours d'enregistrement sans 2ᵉ connexion ; avertissement clair avant tout conflit.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="k">Partager</span><h2>Restream &amp; téléchargements</h2></div>
+      <div class="grid">
+        <div class="card"><div class="ico">📡</div><h3>Restream LAN</h3><p>Une seule connexion fournisseur partagée vers tous tes appareils du même Wi-Fi (VLC, navigateur, TV).</p></div>
+        <div class="card"><div class="ico">🌍</div><h3>Lien public</h3><p>Crée une URL HTTPS publique (Cloudflare, gratuit) pour regarder hors du réseau local.</p></div>
+        <div class="card"><div class="ico">⬇️</div><h3>Téléchargements</h3><p>Films, <b>saison entière</b> ou <b>série complète</b>, mis en file et traités un par un, avec tiroir de progression.</p></div>
+        <div class="card"><div class="ico">🛡️</div><h3>Robuste</h3><p>Reconnexion, nettoyage automatique des processus orphelins (la connexion reste libre) et mises à jour intégrées.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="k">Installer</span><h2>Installation</h2></div>
       <div class="os-cols">
         <ol class="steps">
           <li><b>macOS</b> — décompresse <code>KTV-macos-arm64.zip</code>.</li>
@@ -101,13 +140,13 @@
           <li>Si SmartScreen apparaît : <b>Informations complémentaires</b> → <b>Exécuter quand même</b>.</li>
         </ol>
       </div>
-      <p class="note">macOS <b>Apple Silicon (M1/M2/M3+)</b> · Windows <b>x64</b>. Application open-source sous licence MIT. Binaires construits automatiquement (GitHub Actions).</p>
+      <p class="note">macOS <b>Apple Silicon (M1/M2/M3+)</b> · Windows <b>x64</b>. Abonnement à <b>1 connexion</b> : lecture, enregistrement et restream partagent un relais local unique. Binaires construits automatiquement via GitHub Actions.</p>
     </section>
   </main>
 
   <footer>
     <div class="wrap">
-      <p>KTV — projet open-source · <a href="https://github.com/khalilbenaz/ktv">github.com/khalilbenaz/ktv</a></p>
+      <p>KTV — projet open-source sous licence MIT · <a href="https://github.com/khalilbenaz/ktv">github.com/khalilbenaz/ktv</a></p>
     </div>
   </footer>
 </body>
