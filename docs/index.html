@@ -54,6 +54,11 @@
     .os-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     code { background: #0e1320; color: var(--accent2); padding: 2px 7px; border-radius: 6px; font-size: .9em; word-break: break-all; }
     .note { color: var(--muted); font-size: .9rem; border-left: 3px solid var(--accent); padding-left: 14px; margin: 18px 0; }
+    pre { background: #0e1320; border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; color: #c8d2e6; font-size: .85rem; line-height: 1.5; }
+    pre .c { color: var(--muted); }
+    .api { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 18px; margin-bottom: 16px; }
+    .api li { margin: 10px 0; color: var(--muted); }
+    .api b { color: var(--txt); }
     footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 50px 0 60px; border-top: 1px solid var(--line); margin-top: 40px; }
     footer a { text-decoration: none; }
   </style>
@@ -125,6 +130,28 @@
         <div class="card"><div class="ico">⬇️</div><h3>Téléchargements</h3><p>Films, <b>saison entière</b> ou <b>série complète</b>, mis en file et traités un par un, avec tiroir de progression.</p></div>
         <div class="card"><div class="ico">🛡️</div><h3>Robuste</h3><p>Reconnexion, nettoyage automatique des processus orphelins (la connexion reste libre) et mises à jour intégrées.</p></div>
       </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><span class="k">EPG maison</span><h2>Comment utiliser l'EPG maison</h2></div>
+      <p class="note">Dans KTV, c'est <b>automatique</b> : pour les chaînes sport sans guide fourni par l'abonnement, l'app interroge ce service et affiche le programme — rien à configurer. La section ci-dessous s'adresse à ceux qui veulent <b>interroger l'API directement</b> (script, autre app, autre lecteur).</p>
+
+      <p style="color:var(--muted);margin:0 0 10px;">Base : <code>https://ktv-epg.khalilbenaz.workers.dev</code> — réponses JSON (CORS ouvert), grille rafraîchie ~toutes les 30 min (source : programme-tv).</p>
+
+      <ul class="api">
+        <li><b>GET <code>/sport</code></b> — grille du jour de toutes les chaînes sport (beIN Sports 1/2/3, Canal+ Sport, Eurosport, L'Équipe…). Renvoie <code>{ day, tz, channels: { &lt;chaîne&gt;: [ { st, en, title } ] } }</code>.</li>
+        <li><b>GET <code>/epg?channel=beinsport1</code></b> — programme <b>en cours + suivant</b> d'une chaîne : <code>{ channel, cur:{st,title,en}, next:{st,title,en} }</code>.</li>
+        <li><b>GET <code>/health</code></b> — état du service : <code>{ "ok": true }</code>.</li>
+      </ul>
+
+      <pre><span class="c"># Programme en cours et suivant de beIN Sports 1</span>
+curl "https://ktv-epg.khalilbenaz.workers.dev/epg?channel=beinsport1"
+
+<span class="c"># → </span>{"channel":"beinsport1",
+     "cur": {"st":1781915400,"title":"…","en":1781916600},
+     "next":{"st":1781916600,"title":"…","en":1781917800}}</pre>
+
+      <p class="note"><b>st</b> / <b>en</b> = horodatages <b>Unix en secondes (UTC)</b> — à convertir dans le fuseau de l'utilisateur côté client. Les noms de chaînes sont <b>normalisés</b> (minuscules, sans accents/espaces) : <code>beinsport1</code>, <code>eurosport2</code>, <code>canalsport360</code>, <code>lequipe</code>… Avantage : le parsing se corrige <b>côté serveur</b>, sans mettre à jour l'app.</p>
     </section>
 
     <section>
