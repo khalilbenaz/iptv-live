@@ -13,7 +13,7 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 ### ✨ Nouveautés v1.8
 - **Catch-up / Archive (timeshift)** : sur les chaînes avec archive, bouton **⏪ Revoir** dans le lecteur (catalogue des rediffusions) et programmes passés rejouables directement depuis le **Guide TV**.
 - **Sources multiples / fusion** : ajout de playlists **M3U/M3U8** et de **comptes Xtream secondaires** dans *Réglages* — leurs chaînes apparaissent dans Live TV (lecture, enregistrement et restream gérés par source).
-- **Enrichissement TMDB** : affiches, notes, synopsis, genres et **casting** pour Films & Séries, avec **fiche film** détaillée.
+- **Enrichissement TMDB** : affiches, notes, synopsis, genres et **casting avec photos des acteurs** (rangée de portraits) pour Films & Séries, avec **fiche film** détaillée.
 - **Synchronisation Trakt** : liaison par **code device** ou **PIN**, marquage *vu* automatique **à ~90 % de la lecture** (avant le générique, y compris depuis « Reprendre »), ajout à la **watchlist**.
 - **Tampon / cache configurable** (faible latence / équilibré / stable) + **overlay statistiques réseau** (📊 résolution, débit, tampon, images perdues, latence).
 - **Test de débit & diagnostic fournisseur** : latence API, débit du flux, connexions actives/max, expiration.

@@ -620,3 +620,17 @@ input[type="datetime-local"], #schDur {
 #view-search .search-results { width: 100%; }
 .search-results .poster-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .search-results .chan-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+/* ===================================================================
+   CASTING (photos d'acteurs TMDB)
+   =================================================================== */
+.cast-box { margin-top: 14px; }
+.cast-box .cast-h { font-size: 13px; font-weight: 700; color: var(--accent, #ff6a2c); margin-bottom: 8px; }
+.cast-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.cast-item { flex: 0 0 84px; width: 84px; text-align: center; }
+.cast-img { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; background: var(--panel2); border: 1px solid var(--line); display: block; }
+.cast-ph { display: grid; place-items: center; font-size: 30px; font-weight: 700; color: var(--muted); }
+.cast-n { display: block; font-size: 12px; font-weight: 600; margin-top: 6px; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cast-c { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

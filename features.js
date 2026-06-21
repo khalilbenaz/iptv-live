@@ -476,6 +476,21 @@ async function ktvPosterFetch(card) {
   }
 }
 
+// Rangée de portraits du casting (photo TMDB + nom + rôle).
+function ktvRenderCast(el, cast) {
+  if (!el) return;
+  const list = (cast || []).filter(Boolean).slice(0, 15);
+  if (!list.length) { el.innerHTML = ''; el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = '<div class="cast-h">Casting</div><div class="cast-row">' + list.map((c) => {
+    const img = c.profile_path
+      ? `<img class="cast-img" loading="lazy" src="${TMDB_IMG}w185${c.profile_path}">`
+      : `<div class="cast-img cast-ph">${escapeHtml((c.name || '?').trim().charAt(0).toUpperCase() || '?')}</div>`;
+    return `<div class="cast-item">${img}<span class="cast-n">${escapeHtml(c.name || '')}</span>` +
+      (c.character ? `<span class="cast-c">${escapeHtml(c.character)}</span>` : '') + '</div>';
+  }).join('') + '</div>';
+}
+
 /* Fiche film (modale) avec données TMDB */
 let ktvCurMovie = null;
 async function ktvOpenMovie(m) {
@@ -515,8 +530,7 @@ async function ktvOpenMovie(m) {
     if (info.genres && info.genres.length) bits.push(info.genres.map((g) => g.name).slice(0, 3).join(', '));
     if (info.vote_average > 0) bits.push('★ ' + Number(info.vote_average).toFixed(1));
     $('movieMeta').textContent = bits.join('  ·  ');
-    const cast = (info.credits && info.credits.cast || []).slice(0, 6).map((c) => c.name).join(', ');
-    $('movieCast').textContent = cast ? ('Avec ' + cast) : '';
+    ktvRenderCast($('movieCast'), info.credits && info.credits.cast);
   } catch { $('moviePlot').textContent = m.plot || 'Aucune information.'; }
 }
 
@@ -537,6 +551,8 @@ async function ktvEnrichSeriesModal(s, info) {
       plotEl.parentElement.insertBefore(meta, plotEl);
     }
     if (hit.poster_path) { const cov = $('seriesCover'); if (cov && !cov.querySelector('img')) cov.innerHTML = `<img src="${TMDB_IMG}w342${hit.poster_path}">`; }
+    const det = await ktvTmdbDetails('tv', hit.id);
+    if (det && det.credits) ktvRenderCast($('seriesCast'), det.credits.cast);
   } catch {}
 }
 
