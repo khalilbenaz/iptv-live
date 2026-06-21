@@ -420,21 +420,49 @@ function ktvTmdbCacheSet(k, v) {
     localStorage.setItem('tmdb_cache', JSON.stringify(m));
   } catch {}
 }
+// Normalise un titre pour comparaison (sans accents/ponctuation/casse).
+function ktvNormTitle(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+// Choisit le MEILLEUR résultat dont le titre correspond vraiment à la requête
+// (évite les fausses affiches : TMDB renvoie souvent un film sans rapport en 1er).
+function ktvPickResult(results, query, year) {
+  const qn = ktvNormTitle(query);
+  if (!qn) return null;
+  let best = null, bestScore = -1;
+  for (const r of (results || []).slice(0, 8)) {
+    const titles = [r.title, r.original_title, r.name, r.original_name].filter(Boolean).map(ktvNormTitle);
+    let s = 0;
+    for (const t of titles) {
+      if (!t) continue;
+      if (t === qn) s = Math.max(s, 100);
+      else if (t.startsWith(qn + ' ') || qn.startsWith(t + ' ')) s = Math.max(s, 85);
+      else if (t.includes(qn) || qn.includes(t)) s = Math.max(s, 62);
+    }
+    if (s <= 0) continue;
+    if (r.poster_path) s += 4;
+    if (r.overview) s += 2;
+    s += Math.min(6, (Number(r.popularity) || 0) / 15);
+    const ry = (r.release_date || r.first_air_date || '').slice(0, 4);
+    if (year && ry && String(year) === ry) s += 12;          // bon millésime = bonus fort
+    if (s > bestScore) { bestScore = s; best = r; }
+  }
+  return bestScore >= 60 ? best : null;                       // sinon : pas d'enrichissement (mieux qu'une fausse affiche)
+}
 async function ktvTmdbSearch(type, title, year) {
   if (!ktvSetting('tmdbEnabled') || !ktvSetting('tmdbKey')) return null;
-  const ck = 's2|' + type + '|' + title + '|' + (year || '');   // s2 = invalide l'ancien cache (titres mieux nettoyés)
+  const ck = 's3|' + type + '|' + title + '|' + (year || '');   // s3 = invalide les mauvais matches mis en cache
   const c = ktvTmdbCacheGet(ck); if (c !== undefined) return c;
   const q = cleanTitle(title);
   const yr = year || yearOf(title);
-  const yparam = type === 'tv' ? 'first_air_date_year' : 'year';
   const tryQ = async (query, y) => {
     if (!query || query.length < 2) return null;
-    const path = '/search/' + (type === 'tv' ? 'tv' : 'movie') + '?query=' + encodeURIComponent(query) + (y ? ('&' + yparam + '=' + y) : '');
-    try { const d = await ktvTmdb(path); return (d && d.results && d.results[0]) || null; } catch { return null; }
+    const path = '/search/' + (type === 'tv' ? 'tv' : 'movie') + '?query=' + encodeURIComponent(query) + (y ? ('&' + (type === 'tv' ? 'first_air_date_year' : 'year') + '=' + y) : '');
+    try { const d = await ktvTmdb(path); return ktvPickResult(d && d.results, query, y); } catch { return null; }
   };
-  // 1) titre nettoyé + année · 2) sans année · 3) partie avant un séparateur
+  // 1) titre + année · 2) sans année · 3) partie avant un séparateur
   let v = await tryQ(q, yr);
-  if (!v && yr) v = await tryQ(q, '');
+  if (!v) v = await tryQ(q, '');
   if (!v) { const short = q.split(/\s[:–-]\s|:/)[0].trim(); if (short && short !== q) v = await tryQ(short, ''); }
   ktvTmdbCacheSet(ck, v);
   return v;
