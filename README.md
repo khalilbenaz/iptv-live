@@ -10,6 +10,9 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.9.1
+- **Bouton « ⏪ Revoir » redessiné** dans le lecteur : style cohérent avec le langage premium (teinte indigo dédiée au catch-up), survol en dégradé plein avec ombre colorée et micro-animation de rembobinage de l'icône.
+
 ### ✨ Nouveautés v1.9 — refonte interface « premium »
 - **Accueil cinématographique** : grand **hero** avec **backdrop TMDB** plein cadre, synopsis, **Saison · Épisode**, **barre de progression + temps restant**, bouton **Reprendre**. Rangée **« Reprendre la lecture »** enrichie (sous-titre *Continuer · S01, E02*, badge **S/E**, barre + temps restant).
 - **Reprise réellement fonctionnelle** pour **films ET séries** (le hero/les cartes relancent à la bonne position) avec **barre de progression sur les vignettes** et **temps restant** (« ⏳ 1 h 05 »).

@@ -655,7 +655,22 @@ input[type="datetime-local"], #schDur {
 /* Catch-up : programmes passés rejouables dans le guide */
 .g-prog.archive { cursor: pointer; opacity: .92; }
 .g-prog.archive:hover { outline: 1px solid var(--accent, #ff6a2c); }
-#catchupBtn { background: var(--panel2); border: 1px solid var(--line); color: var(--txt); }
+#catchupBtn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, rgba(120,150,255,.16), rgba(120,150,255,.05));
+  border: 1px solid rgba(130,160,255,.5); color: #aab8ff;
+  border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .05s ease, box-shadow .15s ease;
+}
+#catchupBtn .cu-ico { display: inline-block; font-size: 13px; transition: transform .2s ease; }
+#catchupBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6c7dff, #8a6cff);
+  border-color: transparent; color: #fff;
+  box-shadow: 0 6px 18px rgba(108,125,255,.35);
+}
+#catchupBtn:hover:not(:disabled) .cu-ico { transform: translateX(-3px); }
+#catchupBtn:active:not(:disabled) { transform: translateY(1px); }
+#catchupBtn:disabled { opacity: 0.4; cursor: default; }
 
 /* ===================================================================
    RÉGLAGES — refonte mise en page
