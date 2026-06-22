@@ -98,6 +98,13 @@ function createWindow() {
     });
   } catch (e) { /* noop */ }
 
+  // Cookie de consentement pour la page watch YouTube (webview bande-annonce) → évite le mur RGPD.
+  try {
+    const ytSes = session.fromPartition('persist:youtube');
+    ytSes.cookies.set({ url: 'https://www.youtube.com', name: 'SOCS', value: 'CAISNggA', domain: '.youtube.com', path: '/', secure: true }).catch(() => {});
+    ytSes.cookies.set({ url: 'https://www.youtube.com', name: 'CONSENT', value: 'YES+', domain: '.youtube.com', path: '/', secure: true }).catch(() => {});
+  } catch (e) { /* noop */ }
+
   win.loadFile('index.html');
 }
 

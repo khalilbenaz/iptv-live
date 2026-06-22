@@ -960,18 +960,13 @@ function ktvPlayTrailer(keys) {
   ov.querySelector('.trailer-yt').href = 'https://www.youtube.com/watch?v=' + k;
   const frame = ov.querySelector('.trailer-frame');
   frame.innerHTML = '';
-  const src = `https://www.youtube-nocookie.com/embed/${k}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
-  if ('customElements' in window || document.createElement('webview').constructor !== HTMLUnknownElement) {
-    const wv = document.createElement('webview');
-    wv.setAttribute('src', src);
-    wv.setAttribute('allowpopups', 'false');
-    wv.style.width = '100%'; wv.style.height = '100%'; wv.style.border = '0';
-    frame.appendChild(wv);
-  } else {
-    const ifr = document.createElement('iframe');
-    ifr.src = src; ifr.allow = 'autoplay; encrypted-media; fullscreen'; ifr.allowFullscreen = true; ifr.setAttribute('frameborder', '0');
-    frame.appendChild(ifr);
-  }
+  // Page watch (et non /embed) : YouTube y lit aussi les vidéos « intégration interdite ».
+  const wv = document.createElement('webview');
+  wv.setAttribute('partition', 'persist:youtube');
+  wv.setAttribute('allowpopups', 'false');
+  wv.setAttribute('src', `https://www.youtube.com/watch?v=${k}`);
+  wv.style.width = '100%'; wv.style.height = '100%'; wv.style.border = '0';
+  frame.appendChild(wv);
   ov.classList.remove('hidden');
 }
 
@@ -2216,8 +2211,14 @@ function removeDlItem(id) {
 
 /* ---------- Wire up ---------- */
 /* ---------- Reprise de lecture (VOD / séries) ---------- */
-function loadResumeMap() { try { return JSON.parse(localStorage.getItem('ktv_resume') || '{}'); } catch { return {}; } }
-function saveResumeMap(m) { try { localStorage.setItem('ktv_resume', JSON.stringify(m)); } catch {} }
+// Cache mémoire : évite de parser localStorage à chaque vignette (rendu de 600 cartes).
+let _resumeCache = null;
+function loadResumeMap() {
+  if (_resumeCache) return _resumeCache;
+  try { _resumeCache = JSON.parse(localStorage.getItem('ktv_resume') || '{}'); } catch { _resumeCache = {}; }
+  return _resumeCache;
+}
+function saveResumeMap(m) { _resumeCache = m; try { localStorage.setItem('ktv_resume', JSON.stringify(m)); } catch {} }
 function getResume(key) { return key ? (loadResumeMap()[key] || null) : null; }
 // Progression de reprise (0..1) pour une clé, ou 0 si rien / quasi-fini / au tout début.
 function resumeProgress(key) {
