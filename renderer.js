@@ -515,14 +515,15 @@ function vodShowcaseCard(m, kind, rank) {
 }
 
 // Hero + plusieurs rails (Tendances, Récemment ajoutés, 4K…) en tête de Films / Séries.
-function renderVodShowcase(kind, show) {
+// `pool` = liste déjà filtrée par catégorie (les rails restent donc contextuels).
+function renderVodShowcase(kind, show, pool) {
   const isSeries = kind === 'series';
   const heroSlot = document.getElementById(isSeries ? 'seriesHero' : 'moviesHero');
   const railSlot = document.getElementById(isSeries ? 'seriesTrending' : 'moviesTrending');
   if (heroSlot) heroSlot.innerHTML = '';
   if (railSlot) railSlot.innerHTML = '';
   if (!show) return;
-  const all = (isSeries ? state.series : state.vod) || [];
+  const all = pool || (isSeries ? state.series : state.vod) || [];
   if (!all.length) return;
   const rated = all.filter((x) => Number(x.rating) > 0).sort((a, b) => Number(b.rating) - Number(a.rating));
   const featured = rated[0] || all[0];
@@ -600,11 +601,10 @@ function renderMovies() {
   const grid = $('movieGrid');
   const cat = $('vodCat').value;
   const q = $('search').value.trim().toLowerCase();
-  renderVodShowcase('movie', !cat && !q);
   renderCatChips('movie');
-  let items = state.vod || [];
-  if (cat) items = items.filter((m) => m.category_id == cat);
-  if (q) items = items.filter((m) => (m.name || '').toLowerCase().includes(q));
+  const catItems = (state.vod || []).filter((m) => !cat || m.category_id == cat);
+  renderVodShowcase('movie', !q, catItems);
+  let items = q ? catItems.filter((m) => (m.name || '').toLowerCase().includes(q)) : catItems;
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (state.vodPage > totalPages) state.vodPage = 1;
@@ -658,11 +658,10 @@ function renderSeries() {
   const grid = $('seriesGrid');
   const cat = $('seriesCat').value;
   const q = $('search').value.trim().toLowerCase();
-  renderVodShowcase('series', !cat && !q);
   renderCatChips('series');
-  let items = state.series || [];
-  if (cat) items = items.filter((s) => s.category_id == cat);
-  if (q) items = items.filter((s) => (s.name || '').toLowerCase().includes(q));
+  const catItems = (state.series || []).filter((s) => !cat || s.category_id == cat);
+  renderVodShowcase('series', !q, catItems);
+  let items = q ? catItems.filter((s) => (s.name || '').toLowerCase().includes(q)) : catItems;
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   if (state.seriesPage > totalPages) state.seriesPage = 1;
