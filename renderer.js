@@ -784,13 +784,18 @@ async function buildGuideGrid() {
   const rows = chans.map((c) => {
     const row = document.createElement('div');
     row.className = 'g-row';
+    const hasArch = typeof chHasArchive === 'function' && chHasArchive(c);
     row.innerHTML =
       `<div class="g-ch"><div class="g-logo">${c.stream_icon ? `<img src="${escapeHtml(c.stream_icon)}">` : escapeHtml(initials(c.name))}</div>` +
-      `<span class="g-name">${escapeHtml(c.name || ('Chaîne ' + c.stream_id))}</span></div>` +
+      `<span class="g-name">${escapeHtml(c.name || ('Chaîne ' + c.stream_id))}</span>` +
+      (hasArch ? `<button class="g-catchup" title="Rediffusions (catch-up)">⏪</button>` : '') +
+      `</div>` +
       `<div class="g-progs"><span class="muted">…</span></div>`;
     const im = row.querySelector('img');
     if (im) im.onerror = () => { im.replaceWith(document.createTextNode(initials(c.name))); };
     row.querySelector('.g-ch').onclick = () => play(c);
+    const cu = row.querySelector('.g-catchup');
+    if (cu) cu.onclick = (e) => { e.stopPropagation(); if (typeof ktvOpenCatchup === 'function') ktvOpenCatchup(c); };
     grid.appendChild(row);
     return { c, row };
   });
@@ -812,7 +817,7 @@ async function fillGuideRow(c, row) {
   try {
     const data = await xtreamApi('action=get_short_epg&stream_id=' + c.stream_id + '&limit=8');
     progs = (((data && data.epg_listings) || [])
-      .map((x) => ({ title: decodeEpg(x.title), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
+      .map((x) => ({ title: decodeEpg(x.title), desc: decodeEpg(x.description || ''), st: Number(x.start_timestamp) || 0, en: Number(x.stop_timestamp) || 0 }))
       .filter((p) => p.title && p.st).sort((a, b) => a.st - b.st));
   } catch {}
   if (!progs.length) {
@@ -831,12 +836,15 @@ async function fillGuideRow(c, row) {
     block.className = 'g-prog' + (live ? ' live' : '') + (archive ? ' archive' : '');
     const span = (p.en && p.en > p.st) ? Math.round((p.en - p.st) / 60) : 0;
     block.style.flex = span ? Math.max(1, Math.min(6, span / 30)) : 1;
-    block.innerHTML = `<span class="gp-t">${archive ? '⏪ ' : ''}${escapeHtml(p.title)}</span><span class="gp-h">${epgTime(p.st)}</span>`;
+    const range = p.en && p.en > p.st ? `${epgTime(p.st)} – ${epgTime(p.en)}` : epgTime(p.st);
+    block.innerHTML = `<span class="gp-t">${live ? '🔴 ' : (archive ? '⏪ ' : '')}${escapeHtml(p.title)}</span>` +
+      `<span class="gp-h">${range}</span>` +
+      (p.desc ? `<span class="gp-d">${escapeHtml(p.desc)}</span>` : '');
     if (live && p.en > p.st) {
       const pct = Math.round(((now - p.st) / (p.en - p.st)) * 100);
       block.innerHTML += `<div class="gp-bar"><i style="width:${pct}%"></i></div>`;
     }
-    block.title = archive ? '⏪ Revoir (catch-up)' : '';
+    block.title = (archive ? '⏪ Revoir (catch-up)\n\n' : '') + (p.desc || p.title);
     block.onclick = archive ? (() => ktvPlayArchive(c, p)) : (() => play(c));
     slot.appendChild(block);
   }

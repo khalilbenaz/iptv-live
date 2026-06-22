@@ -215,7 +215,7 @@ async function ktvApplySources() {
    URL: {base}/timeshift/{user}/{pass}/{durMin}/{Y-m-d:H-i}/{streamId}.ts
    ===================================================================== */
 function chHasArchive(ch) {
-  return !!(ch && !ch._url && (ch.tv_archive == 1 || Number(ch.tv_archive) > 0));
+  return !!(ch && !ch._url && (ch.tv_archive == 1 || Number(ch.tv_archive) > 0 || Number(ch.tv_archive_duration) > 0));
 }
 function ktvArchiveCreds(ch) {
   if (ch && ch._src && ch._src.type === 'xtream') return { base: String(ch._src.srv).replace(/\/+$/, ''), usr: ch._src.usr, pwd: ch._src.pwd };
@@ -243,8 +243,8 @@ function ktvUpdateCatchupBtn(ch) {
   const b = $('catchupBtn'); if (!b) return;
   b.classList.toggle('hidden', !chHasArchive(ch));
 }
-async function ktvOpenCatchup() {
-  const ch = state.current; if (!ch) return;
+async function ktvOpenCatchup(channel) {
+  const ch = channel || state.current; if (!ch) return;
   const modal = $('catchupModal'), list = $('catchupList');
   if (!modal) return;
   $('catchupChan').textContent = ch.name || 'Chaîne';

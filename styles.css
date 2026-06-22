@@ -276,6 +276,11 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 .gp-h { font-size: 11px; color: var(--muted); }
 .gp-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 2px; }
 .gp-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+.gp-d { font-size: 11px; color: var(--muted); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 240px; }
+.g-prog { max-width: 280px; }
+.g-prog.archive .gp-t { color: var(--accent2); }
+.g-catchup { flex: 0 0 auto; margin-left: auto; background: var(--panel2); border: 1px solid var(--line); color: var(--accent2); border-radius: 7px; padding: 3px 7px; font-size: 12px; cursor: pointer; }
+.g-catchup:hover { border-color: var(--accent); background: rgba(255,106,44,.14); }
 
 /* PLAYER VIEW */
 .player-top { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
