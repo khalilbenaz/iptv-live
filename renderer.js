@@ -617,7 +617,7 @@ function renderPager(containerId, page, totalPages, onGo) {
 function renderMovies() {
   const grid = $('movieGrid');
   const view = grid.closest('.view');
-  const savedScroll = view ? view.scrollTop : 0;
+  const gBefore = grid.getBoundingClientRect().top; // ancrage : garder la grille fixe à l'écran
   const cat = $('vodCat').value;
   const q = $('search').value.trim().toLowerCase();
   renderCatChips('movie');
@@ -643,7 +643,7 @@ function renderMovies() {
   }
   grid.appendChild(frag);
   renderPager('moviePager', page, totalPages, (p) => { state.vodPage = p; renderMovies(); if (view) view.scrollTop = 0; });
-  if (view) view.scrollTop = savedScroll;
+  if (view) { const d = grid.getBoundingClientRect().top - gBefore; if (d) view.scrollTop += d; }
 }
 
 function playMovie(m) {
@@ -677,7 +677,7 @@ async function ensureSeries() {
 function renderSeries() {
   const grid = $('seriesGrid');
   const view = grid.closest('.view');
-  const savedScroll = view ? view.scrollTop : 0;
+  const gBefore = grid.getBoundingClientRect().top; // ancrage : garder la grille fixe à l'écran
   const cat = $('seriesCat').value;
   const q = $('search').value.trim().toLowerCase();
   renderCatChips('series');
@@ -700,7 +700,7 @@ function renderSeries() {
   }
   grid.appendChild(frag);
   renderPager('seriesPager', page, totalPages, (p) => { state.seriesPage = p; renderSeries(); if (view) view.scrollTop = 0; });
-  if (view) view.scrollTop = savedScroll;
+  if (view) { const d = grid.getBoundingClientRect().top - gBefore; if (d) view.scrollTop += d; }
 }
 
 let curSeries = null;
