@@ -136,7 +136,7 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 .settings-section h3 { font-size: 15px; margin-bottom: 8px; }
 /* Réglages en onglets : nav fixe à gauche, seul le contenu de droite défile */
 #view-settings { overflow: hidden; }
-#view-settings .view-panel { max-width: 1020px; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+#view-settings .view-panel { max-width: none; width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .settings-layout { display: flex; gap: 26px; align-items: stretch; flex: 1; min-height: 0; }
 .settings-nav { flex: 0 0 232px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-right: 4px; }
 .settings-tab { text-align: left; background: transparent; border: 1px solid transparent; color: var(--txt); padding: 11px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; }
