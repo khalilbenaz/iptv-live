@@ -191,6 +191,9 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 .trailer-frame, .trailer-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .trailer-x { position: absolute; top: -14px; right: -14px; z-index: 2; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #fff; color: #111; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
 .trailer-x:hover { background: var(--accent); color: #fff; }
+.trailer-fallback { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px; text-align: center; background: rgba(0,0,0,.85); color: #fff; font-size: 14px; }
+.trailer-fallback.hidden { display: none; }
+.trailer-fallback a { color: var(--accent2); font-weight: 700; }
 .btn { display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 10px; padding: 11px 22px; font-weight: 700; font-size: 14px; cursor: pointer; }
 .btn.play { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
 .btn.play:hover { filter: brightness(1.08); }

@@ -937,30 +937,69 @@ function recentCard(r) {
   return card;
 }
 
-// Lecture d'une bande-annonce dans un overlay intégré (iframe YouTube), sans nouvelle fenêtre.
-function ktvPlayTrailer(key) {
-  if (!key) return;
+// Charge l'API IFrame YouTube une seule fois (permet de détecter les erreurs d'intégration).
+let _ytApiPromise = null;
+function ensureYTApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (_ytApiPromise) return _ytApiPromise;
+  _ytApiPromise = new Promise((resolve) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { try { if (typeof prev === 'function') prev(); } catch {} resolve(); };
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  });
+  return _ytApiPromise;
+}
+
+// Lecture d'une bande-annonce dans un overlay intégré. Reçoit une liste de clés YouTube
+// candidates : si une vidéo refuse l'intégration, on passe automatiquement à la suivante.
+let _ytPlayer = null;
+function ktvPlayTrailer(keys) {
+  const list = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
+  if (!list.length) return;
   let ov = document.getElementById('trailerOverlay');
   if (!ov) {
     ov = document.createElement('div');
     ov.id = 'trailerOverlay';
     ov.className = 'trailer-overlay hidden';
-    ov.innerHTML = '<div class="trailer-box"><button class="trailer-x" title="Fermer (Échap)">✕</button><div class="trailer-frame"></div></div>';
+    ov.innerHTML = '<div class="trailer-box"><button class="trailer-x" title="Fermer (Échap)">✕</button><div class="trailer-frame"><div id="ytMount"></div></div><div class="trailer-fallback hidden"></div></div>';
     document.body.appendChild(ov);
-    const close = () => { ov.classList.add('hidden'); const f = ov.querySelector('.trailer-frame'); if (f) f.innerHTML = ''; };
-    ov.querySelector('.trailer-x').onclick = close;
-    ov.onclick = (e) => { if (e.target === ov) close(); };
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ov.classList.contains('hidden')) close(); });
+    ov._close = () => {
+      ov.classList.add('hidden');
+      try { if (_ytPlayer && _ytPlayer.stopVideo) _ytPlayer.stopVideo(); } catch {}
+      try { if (_ytPlayer && _ytPlayer.destroy) _ytPlayer.destroy(); } catch {}
+      _ytPlayer = null;
+      const m = ov.querySelector('.trailer-frame'); if (m) m.innerHTML = '<div id="ytMount"></div>';
+    };
+    ov.querySelector('.trailer-x').onclick = ov._close;
+    ov.onclick = (e) => { if (e.target === ov) ov._close(); };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ov.classList.contains('hidden')) ov._close(); });
   }
-  const frame = ov.querySelector('.trailer-frame');
-  frame.innerHTML = '';
-  const ifr = document.createElement('iframe');
-  ifr.src = `https://www.youtube-nocookie.com/embed/${key}?autoplay=1&rel=0&modestbranding=1`;
-  ifr.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
-  ifr.allowFullscreen = true;
-  ifr.setAttribute('frameborder', '0');
-  frame.appendChild(ifr);
+  const fb = ov.querySelector('.trailer-fallback');
+  fb.classList.add('hidden'); fb.innerHTML = '';
+  ov.querySelector('.trailer-frame').innerHTML = '<div id="ytMount"></div>';
   ov.classList.remove('hidden');
+
+  ensureYTApi().then(() => {
+    let idx = 0;
+    const showFallback = (k) => {
+      fb.innerHTML = `Cette bande-annonce refuse l'intégration. <a href="https://www.youtube.com/watch?v=${k}" target="_blank" rel="noreferrer">Ouvrir sur YouTube ↗</a>`;
+      fb.classList.remove('hidden');
+    };
+    const tryNext = () => {
+      if (idx >= list.length) { showFallback(list[list.length - 1]); return; }
+      const k = list[idx++];
+      try { if (_ytPlayer && _ytPlayer.destroy) _ytPlayer.destroy(); } catch {}
+      ov.querySelector('.trailer-frame').innerHTML = '<div id="ytMount"></div>';
+      _ytPlayer = new window.YT.Player('ytMount', {
+        host: 'https://www.youtube-nocookie.com',
+        videoId: k,
+        playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 },
+        events: { onError: () => tryNext() },
+      });
+    };
+    tryNext();
+  });
 }
 
 function buildHero(item) {
@@ -1029,10 +1068,10 @@ function buildHero(item) {
         if (hit.overview && !plot.textContent) plot.textContent = hit.overview;
         // Bande-annonce (clé YouTube via TMDB)
         if (typeof ktvTrailerKey === 'function') {
-          const yt = await ktvTrailerKey(type, hit.id);
-          if (yt) {
+          const yts = await ktvTrailerKey(type, hit.id);
+          if (yts && yts.length) {
             const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = '▶ Bande-annonce';
-            tb.onclick = () => ktvPlayTrailer(yt);
+            tb.onclick = () => ktvPlayTrailer(yts);
             btns.appendChild(tb);
           }
         }

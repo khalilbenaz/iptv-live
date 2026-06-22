@@ -479,20 +479,14 @@ async function ktvTmdbDetails(type, id) {
   return v;
 }
 
-// Clé YouTube de la bande-annonce (TMDB /videos). FR d'abord, fallback EN puis sans langue.
+// Clés YouTube candidates des bandes-annonces (TMDB /videos), triées par pertinence.
+// Renvoie un tableau (≤ 6) : le lecteur essaie la suivante si une refuse l'intégration.
 async function ktvTrailerKey(type, id) {
   const tkey = ktvSetting('tmdbKey');
-  if (!ktvSetting('tmdbEnabled') || !tkey) return null;
-  const ck = 'yt|' + type + '|' + id;
+  if (!ktvSetting('tmdbEnabled') || !tkey) return [];
+  const ck = 'yt2|' + type + '|' + id;
   const c = ktvTmdbCacheGet(ck); if (c !== undefined) return c;
   const path = 'https://api.themoviedb.org/3/' + (type === 'tv' ? 'tv' : 'movie') + '/' + id + '/videos';
-  const pickFrom = (list) => {
-    const v = (list || []).filter((x) => x.site === 'YouTube');
-    return (v.find((x) => x.type === 'Trailer' && x.official)
-      || v.find((x) => x.type === 'Trailer')
-      || v.find((x) => x.type === 'Teaser')
-      || v[0] || null);
-  };
   const fetchVids = async (lang) => {
     try {
       const r = await fetch(path + (lang ? ('?language=' + lang) : ''), { headers: { Authorization: 'Bearer ' + tkey, accept: 'application/json' } });
@@ -500,14 +494,17 @@ async function ktvTrailerKey(type, id) {
       const d = await r.json(); return (d && d.results) || [];
     } catch { return []; }
   };
-  let key = null;
+  const rank = (x) => (x.type === 'Trailer' && x.official) ? 0 : (x.type === 'Trailer') ? 1 : (x.type === 'Teaser') ? 2 : (x.type === 'Clip') ? 3 : 4;
   const lang = ktvSetting('tmdbLang') || 'fr-FR';
-  let pick = pickFrom(await fetchVids(lang));
-  if (!pick) pick = pickFrom(await fetchVids('en-US'));
-  if (!pick) pick = pickFrom(await fetchVids(null));
-  key = pick ? pick.key : null;
-  ktvTmdbCacheSet(ck, key);
-  return key;
+  const all = [].concat(await fetchVids(lang), await fetchVids('en-US'), await fetchVids(null));
+  const seen = new Set();
+  const keys = all
+    .filter((x) => x.site === 'YouTube' && x.key && !seen.has(x.key) && seen.add(x.key))
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, 6)
+    .map((x) => x.key);
+  ktvTmdbCacheSet(ck, keys);
+  return keys;
 }
 
 let ktvTmdbObs = null;
