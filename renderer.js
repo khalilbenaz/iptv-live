@@ -966,24 +966,18 @@ function ktvPlayTrailer(keys) {
   wv.setAttribute('allowpopups', 'false');
   wv.setAttribute('src', `https://www.youtube.com/watch?v=${k}`);
   wv.style.width = '100%'; wv.style.height = '100%'; wv.style.border = '0';
-  // Une fois la page prête : passe le lecteur en plein écran (cache l'UI YouTube) et masque le reste.
+  // Au chargement : on masque le chrome YouTube et on étire le lecteur pour remplir le
+  // webview (sans déclencher le plein écran OS — la vidéo reste dans l'overlay).
   wv.addEventListener('dom-ready', () => {
     try {
       wv.insertCSS([
-        '#masthead-container,#secondary,#below,#comments,ytd-merch-shelf-renderer,tp-yt-app-drawer,#chat,ytd-watch-metadata{display:none!important}',
+        '#masthead-container,#secondary,#below,#comments,ytd-merch-shelf-renderer,tp-yt-app-drawer,#chat,ytd-watch-metadata,ytd-watch-flexy #related{display:none!important}',
         'html,body{overflow:hidden!important;background:#000!important;margin:0!important}',
         '#page-manager,ytd-watch-flexy #columns,ytd-watch-flexy #primary,#primary-inner{margin:0!important;padding:0!important;max-width:100vw!important;width:100vw!important}',
         '#player,#player-container,#player-container-outer,#player-container-inner,#movie_player,.html5-video-player{width:100vw!important;max-width:100vw!important;height:100vh!important;left:0!important;margin:0!important}',
         'video.html5-main-video{width:100%!important;height:100%!important;object-fit:contain!important}',
       ].join(''));
     } catch {}
-    const goFs = "(function(){var p=document.querySelector('#movie_player');var b=document.querySelector('.ytp-fullscreen-button');if(b&&p&&!p.classList.contains('ytp-fullscreen')){b.click();return true}return !!(p&&p.classList.contains('ytp-fullscreen'))})()";
-    let tries = 0;
-    const t = setInterval(() => {
-      tries++;
-      wv.executeJavaScript(goFs, true).then((ok) => { if (ok || tries > 10) clearInterval(t); }).catch(() => { if (tries > 10) clearInterval(t); });
-    }, 600);
-    wv._fsTimer = t;
   });
   frame.appendChild(wv);
   ov.classList.remove('hidden');
