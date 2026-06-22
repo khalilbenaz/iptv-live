@@ -499,7 +499,21 @@ function buildVodHero(m, kind) {
   return hero;
 }
 
-// Hero + rail « Tendances » (numéroté, par note) en tête de Films / Séries.
+// Une vignette pour un rail de showcase (avec rang optionnel).
+function vodShowcaseCard(m, kind, rank) {
+  const isSeries = kind === 'series';
+  const card = posterCard({
+    title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
+    progress: isSeries ? 0 : resumeProgress('movie:' + m.stream_id),
+    remaining: isSeries ? 0 : resumeRemaining('movie:' + m.stream_id),
+    onClick: () => (isSeries ? openSeries(m) : (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m))),
+    tmdb: isSeries ? { type: 'tv', title: m.name } : { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
+  });
+  if (rank) { const img = card.querySelector('.p-img'); if (img) { const rk = document.createElement('span'); rk.className = 'rank-badge'; rk.textContent = String(rank); img.appendChild(rk); } }
+  return card;
+}
+
+// Hero + plusieurs rails (Tendances, Récemment ajoutés, 4K…) en tête de Films / Séries.
 function renderVodShowcase(kind, show) {
   const isSeries = kind === 'series';
   const heroSlot = document.getElementById(isSeries ? 'seriesHero' : 'moviesHero');
@@ -512,22 +526,21 @@ function renderVodShowcase(kind, show) {
   const rated = all.filter((x) => Number(x.rating) > 0).sort((a, b) => Number(b.rating) - Number(a.rating));
   const featured = rated[0] || all[0];
   if (heroSlot && featured) heroSlot.appendChild(buildVodHero(featured, kind));
-  const trend = rated.slice(0, 16);
-  if (railSlot && trend.length) {
-    const cards = trend.map((m, i) => {
-      const card = posterCard({
-        title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
-        progress: isSeries ? 0 : resumeProgress('movie:' + m.stream_id),
-        remaining: isSeries ? 0 : resumeRemaining('movie:' + m.stream_id),
-        onClick: () => (isSeries ? openSeries(m) : (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m))),
-        tmdb: isSeries ? { type: 'tv', title: m.name } : { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
-      });
-      const img = card.querySelector('.p-img');
-      if (img) { const rk = document.createElement('span'); rk.className = 'rank-badge'; rk.textContent = String(i + 1); img.appendChild(rk); }
-      return card;
-    });
-    railSlot.appendChild(makeRow('Tendances', cards));
-  }
+  if (!railSlot) return;
+
+  const recent = all.slice().sort((a, b) => (Number(isSeries ? b.last_modified : b.added) || 0) - (Number(isSeries ? a.last_modified : a.added) || 0)).slice(0, 18);
+  const uhd = all.filter((x) => { const qy = detectQuality(x.name); return qy === '4K' || qy === '8K'; }).slice(0, 18);
+  const fhd = all.filter((x) => detectQuality(x.name) === 'FHD').slice(0, 18);
+
+  const addRail = (title, items, numbered) => {
+    if (!items || !items.length) return;
+    const cards = items.map((m, i) => vodShowcaseCard(m, kind, numbered ? i + 1 : 0));
+    railSlot.appendChild(makeRow(title, cards));
+  };
+  addRail('Tendances', rated.slice(0, 16), true);
+  addRail(isSeries ? 'Récemment mises à jour' : 'Récemment ajoutés', recent, false);
+  addRail('4K • UHD', uhd, false);
+  if (!uhd.length) addRail('Full HD', fhd, false);
 }
 
 function renderMovies() {
