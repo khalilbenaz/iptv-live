@@ -560,10 +560,16 @@ function renderCatChips(kind) {
   const cur = sel.value;
   // Si les chips existent déjà et que la liste n'a pas changé : on met juste à jour
   // l'état actif (sans reconstruire → pas de saut de défilement ni de focus).
+  const bringIntoView = (active) => {
+    if (!active) return;
+    const left = active.offsetLeft, right = left + active.offsetWidth;
+    if (left < wrap.scrollLeft) wrap.scrollLeft = left - 16;
+    else if (right > wrap.scrollLeft + wrap.clientWidth) wrap.scrollLeft = right - wrap.clientWidth + 16;
+  };
   if (wrap.children.length === cats.length + 1) {
     let active = null;
     [...wrap.children].forEach((b) => { const on = String(b.dataset.val ?? '') === String(cur); b.classList.toggle('active', on); if (on) active = b; });
-    if (active) try { active.scrollIntoView({ inline: 'nearest', block: 'nearest' }); } catch {}
+    bringIntoView(active);
     return;
   }
   const sl = wrap.scrollLeft;
