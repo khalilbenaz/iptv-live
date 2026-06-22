@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -84,6 +84,19 @@ function createWindow() {
     }
   });
   win.maximize();
+
+  // Embed YouTube depuis file:// : sans Referer/Origin web valide, le lecteur
+  // renvoie « Erreur de configuration » (153). On présente un Referer youtube.com.
+  try {
+    const ytFilter = { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*', '*://*.ytimg.com/*'] };
+    win.webContents.session.webRequest.onBeforeSendHeaders(ytFilter, (details, cb) => {
+      const h = details.requestHeaders;
+      h['Referer'] = 'https://www.youtube.com/';
+      h['Origin'] = 'https://www.youtube.com';
+      cb({ requestHeaders: h });
+    });
+  } catch (e) { /* noop */ }
+
   win.loadFile('index.html');
 }
 
