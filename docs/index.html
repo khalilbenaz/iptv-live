@@ -1,221 +1,256 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KTV — Lecteur Xtream pour macOS & Windows</title>
-  <meta name="description" content="KTV : lecteur Xtream Codes pour macOS & Windows. Live TV, vraie 4K, films & séries, guide EPG, enregistrement programmé, restream, lien public et export WhatsApp." />
-  <meta property="og:title" content="KTV — Lecteur Xtream" />
-  <meta property="og:description" content="Live TV, vraie 4K automatique, enregistrement programmé, restream, lien public et export WhatsApp — macOS & Windows." />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="icon.png" />
-  <meta property="og:image" content="https://khalilbenaz.github.io/ktv/icon.png" />
-  <style>
-    :root {
-      --bg: #0b0d12; --panel: #141821; --panel2: #1c2130; --line: #262c3a;
-      --txt: #e8ebf2; --muted: #8b93a7; --accent: #ff6a2c; --accent2: #4f8cff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: radial-gradient(1200px 600px at 50% -10%, #1a2030 0%, var(--bg) 60%);
-      color: var(--txt); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased; line-height: 1.6;
-    }
-    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 22px; }
-    a { color: var(--accent2); }
-    header { text-align: center; padding: 80px 0 40px; }
-    .logo-img { width: 120px; height: 120px; border-radius: 26px; box-shadow: 0 16px 40px rgba(0,0,0,.5); }
-    h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin: 12px 0 6px; letter-spacing: -.02em; }
-    .tagline { color: var(--muted); font-size: clamp(1rem, 3vw, 1.2rem); margin: 0 auto 24px; max-width: 660px; }
-    .ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-    .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff;
-      text-decoration: none; font-weight: 700; padding: 14px 26px; border-radius: 12px; font-size: 1.02rem;
-      box-shadow: 0 12px 30px rgba(255,106,44,.3); transition: transform .08s, filter .15s; }
-    .cta.win { background: var(--panel2); border: 1px solid var(--line); box-shadow: none; }
-    .cta:hover { filter: brightness(1.08); } .cta:active { transform: scale(.98); }
-    .sub-links { margin-top: 18px; font-size: .9rem; }
-    .sub-links a { text-decoration: none; margin: 0 8px; }
-    .sub-links a:hover { text-decoration: underline; }
-    .badge { display: inline-block; background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
-      border-radius: 999px; padding: 4px 12px; font-size: .8rem; margin-bottom: 18px; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KTV — Lecteur Xtream pour macOS & Windows</title>
+<meta name="description" content="KTV : lecteur Xtream Codes moderne pour macOS & Windows. Live TV en vraie 4K, films & séries façon streaming, reprise de lecture, guide EPG, catch-up, enregistrement programmé, restream et export WhatsApp.">
+<meta property="og:title" content="KTV — Lecteur Xtream premium">
+<meta property="og:description" content="Live TV en vraie 4K, films & séries façon streaming, reprise, guide EPG & catch-up — macOS & Windows.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://khalilbenaz.github.io/ktv/icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root{
+    --bg:#0a0b0f;--panel:#13151d;--panel2:#1b1e29;--line:#262a36;
+    --txt:#eef0f5;--muted:#9aa2b1;--accent:#ff6a2c;--accent2:#ff9a4d;
+    --radius:16px;--maxw:1140px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);line-height:1.6;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .accent{background:linear-gradient(120deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
 
-    section { padding: 26px 0; }
-    .sec-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 18px; }
-    .sec-head h2 { font-size: 1.5rem; margin: 0; }
-    .sec-head .k { color: var(--accent); font-weight: 800; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-    .card .ico { font-size: 24px; } .card h3 { margin: 10px 0 6px; font-size: 1.04rem; }
-    .card p { color: var(--muted); margin: 0; font-size: .92rem; }
+  /* Nav */
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(150%) blur(14px);-webkit-backdrop-filter:saturate(150%) blur(14px);
+    background:rgba(10,11,15,.66);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:18px;height:62px}
+  nav .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px;letter-spacing:-.5px}
+  nav .brand img{width:30px;height:30px;border-radius:9px}
+  nav .links{margin-left:auto;display:flex;gap:8px;align-items:center}
+  nav .links a{color:var(--muted);font-size:14px;font-weight:600;padding:8px 12px;border-radius:9px}
+  nav .links a:hover{color:var(--txt);background:var(--panel2)}
+  nav .links a.dl{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;box-shadow:0 8px 20px rgba(255,106,44,.35)}
+  @media(max-width:720px){nav .links a:not(.dl){display:none}}
 
-    .steps { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 8px 24px; }
-    .steps li { margin: 12px 0; color: var(--muted); }
-    .steps b { color: var(--txt); }
-    .os-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-    code { background: #0e1320; color: var(--accent2); padding: 2px 7px; border-radius: 6px; font-size: .9em; word-break: break-all; }
-    .note { color: var(--muted); font-size: .9rem; border-left: 3px solid var(--accent); padding-left: 14px; margin: 18px 0; }
-    pre { background: #0e1320; border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; color: #c8d2e6; font-size: .85rem; line-height: 1.5; }
-    pre .c { color: var(--muted); }
-    .api { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 18px; margin-bottom: 16px; }
-    .api li { margin: 10px 0; color: var(--muted); }
-    .api b { color: var(--txt); }
-    footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 50px 0 60px; border-top: 1px solid var(--line); margin-top: 40px; }
-    footer a { text-decoration: none; }
-  </style>
+  /* Hero */
+  .hero{position:relative;overflow:hidden;padding:90px 0 70px;text-align:center}
+  .hero .bg{position:absolute;inset:0;pointer-events:none}
+  .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;animation:float 22s ease-in-out infinite}
+  .orb.a{width:480px;height:480px;background:radial-gradient(circle,#ff6a2c,transparent 70%);top:-120px;left:-80px}
+  .orb.b{width:420px;height:420px;background:radial-gradient(circle,#ff9a4d,transparent 70%);top:-40px;right:-90px;animation-delay:-8s}
+  .orb.c{width:360px;height:360px;background:radial-gradient(circle,#d2440f,transparent 70%);bottom:-160px;left:45%;animation-delay:-14s}
+  .grid-mask{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(circle at 50% 30%,#000 30%,transparent 78%);mask-image:radial-gradient(circle at 50% 30%,#000 30%,transparent 78%)}
+  @keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.08)}66%{transform:translate(-30px,24px) scale(.94)}}
+  .hero .inner{position:relative;z-index:1}
+  .logo{width:96px;height:96px;border-radius:24px;display:inline-grid;place-items:center;background:#0d0f15;box-shadow:0 18px 50px rgba(255,106,44,.45),inset 0 0 0 1px rgba(255,255,255,.06);margin-bottom:24px;animation:rise .6s cubic-bezier(.2,.8,.2,1)}
+  .logo img{width:74px;height:74px;border-radius:18px}
+  @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;margin-bottom:20px}
+  h1{font-size:clamp(2.6rem,7vw,4.4rem);font-weight:900;letter-spacing:-2px;line-height:1.02}
+  .tag{color:var(--muted);font-size:clamp(1.05rem,2.4vw,1.3rem);max-width:680px;margin:18px auto 0}
+  .cta{margin-top:34px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:9px;border-radius:13px;padding:15px 26px;font-weight:800;font-size:15.5px;cursor:pointer;transition:filter .15s,transform .08s,background .15s,border-color .15s}
+  .btn.primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;box-shadow:0 14px 32px rgba(255,106,44,.42)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14)}
+  .btn.ghost:hover{background:rgba(255,255,255,.13)}
+  .btn:active{transform:translateY(1px)}
+  .sublinks{margin-top:20px;font-size:13.5px;color:var(--muted)}
+  .sublinks a{color:var(--accent2);font-weight:600;margin:0 8px}
+
+  /* App preview (CSS mock) */
+  .preview{position:relative;z-index:1;max-width:980px;margin:54px auto 0;padding:0 12px}
+  .frame{border-radius:18px;border:1px solid var(--line);background:linear-gradient(180deg,#10131b,#0c0e14);box-shadow:0 40px 100px rgba(0,0,0,.6);overflow:hidden}
+  .frame .bar{height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);background:#0e1018}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .stage{position:relative;aspect-ratio:16/8.4;background:
+    radial-gradient(700px 320px at 78% 18%,rgba(255,106,44,.34),transparent 60%),
+    linear-gradient(180deg,#0d0f16,#0a0c11)}
+  .stage .heroband{position:absolute;left:6%;top:18%;max-width:46%}
+  .stage .heroband .k{color:var(--accent2);font-weight:800;font-size:12px;letter-spacing:1px}
+  .stage .heroband h4{font-size:clamp(1.2rem,3vw,2rem);margin:6px 0 10px;letter-spacing:-1px}
+  .stage .pbar{height:6px;width:70%;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden}
+  .stage .pbar i{display:block;height:100%;width:42%;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+  .stage .pill{display:inline-block;margin-top:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;font-weight:800;font-size:12px;padding:8px 16px;border-radius:10px}
+  .rail{position:absolute;left:6%;right:4%;bottom:7%;display:flex;gap:14px}
+  .rail .t{flex:1;aspect-ratio:2/3;border-radius:10px;background:linear-gradient(160deg,#1c2030,#141826);border:1px solid var(--line);position:relative}
+  .rail .t::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--accent2),var(--accent));width:var(--p,0)}
+  @media(max-width:640px){.rail .t:nth-child(n+5){display:none}}
+
+  /* Sections */
+  section.block{padding:72px 0;border-top:1px solid var(--line)}
+  .eyebrow{color:var(--accent2);font-weight:800;font-size:12.5px;letter-spacing:1.2px;text-transform:uppercase}
+  h2{font-size:clamp(1.7rem,3.6vw,2.3rem);font-weight:800;letter-spacing:-.6px;margin:8px 0 6px}
+  .lead{color:var(--muted);max-width:680px;margin-bottom:34px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;transition:border-color .15s,transform .15s,background .15s}
+  .card:hover{border-color:var(--accent);transform:translateY(-3px)}
+  .card .ic{font-size:25px;margin-bottom:11px}
+  .card h3{font-size:16.5px;margin-bottom:5px}
+  .card p{color:var(--muted);font-size:14px;margin:0}
+  .pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .pill2{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600}
+
+  /* Steps */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;counter-reset:s;margin-top:6px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px 22px;position:relative}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;top:-15px;left:20px;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-weight:900;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+  .step h3{margin:10px 0 6px;font-size:16px}
+  .step p{color:var(--muted);font-size:14px}
+
+  /* EPG / code */
+  .api{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 22px;margin:0 0 16px}
+  .api li{margin:12px 0;color:var(--muted);font-size:14px}.api b{color:var(--txt)}
+  code{background:#0e1320;color:var(--accent2);padding:2px 7px;border-radius:6px;font-size:.9em;word-break:break-all}
+  pre{background:#0e1320;border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto;color:#c8d2e6;font-size:13px;line-height:1.55}
+  pre .c{color:var(--muted)}
+  .note{background:rgba(255,106,44,.08);border:1px solid rgba(255,106,44,.24);border-radius:12px;padding:15px 18px;color:#ffd9c4;font-size:14px;margin-top:24px}
+
+  footer{padding:54px 0;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px;text-align:center}
+  footer a{color:var(--accent2);font-weight:600}
+</style>
 </head>
 <body>
-  <header>
+  <nav>
     <div class="wrap">
-      <img class="logo-img" src="icon.png" alt="KTV" width="120" height="120" />
-      <h1>KTV</h1>
-      <p class="tagline">Lecteur Xtream Codes pour macOS &amp; Windows — live TV en vraie 4K, films &amp; séries, guide EPG, enregistrement programmé, restream et partage.</p>
-      <span class="badge">macOS (Apple Silicon) · Windows (x64) · open-source MIT</span>
-      <div class="ctas">
-        <a class="cta" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-macos-arm64.zip"> Télécharger pour macOS</a>
-        <a class="cta win" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-windows-x64.zip">⊞ Télécharger pour Windows</a>
+      <a class="brand" href="#top"><img src="icon.png" alt="">KTV</a>
+      <div class="links">
+        <a href="#features">Fonctions</a>
+        <a href="#epg">EPG API</a>
+        <a href="#install">Installation</a>
+        <a class="dl" href="https://github.com/khalilbenaz/ktv/releases/latest">⬇ Télécharger</a>
       </div>
-      <div class="sub-links">
-        <a href="https://restream-live.pages.dev">▶ Regarder un restream</a> ·
-        <a href="https://ktv-epg.khalilbenaz.workers.dev/health">API EPG</a> ·
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="bg"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span><span class="grid-mask"></span></div>
+    <div class="wrap inner">
+      <div class="logo"><img src="icon.png" alt="KTV"></div>
+      <div class="badge">macOS (Apple Silicon) · Windows (x64) · open-source MIT · v1.9</div>
+      <h1>Votre univers <span class="accent">Xtream</span>,<br>façon streaming.</h1>
+      <p class="tag">Live TV en vraie 4K, films &amp; séries cinématographiques, reprise de lecture, guide EPG, catch-up, enregistrement &amp; restream — dans une seule app moderne.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-macos-arm64.zip"> Télécharger pour macOS</a>
+        <a class="btn ghost" href="https://github.com/khalilbenaz/ktv/releases/latest/download/KTV-windows-x64.zip">⊞ Pour Windows</a>
+      </div>
+      <div class="sublinks">
         <a href="https://github.com/khalilbenaz/ktv">Code source</a> ·
         <a href="https://github.com/khalilbenaz/ktv/releases/latest">Dernière version</a> ·
-        <a href="https://github.com/khalilbenaz/ktv/releases">Historique</a>
+        <a href="https://restream-live.pages.dev">Regarder un restream</a>
+      </div>
+
+      <div class="preview" aria-hidden="true">
+        <div class="frame">
+          <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+          <div class="stage">
+            <div class="heroband">
+              <div class="k">● REPRENDRE · S01 E03</div>
+              <h4>À la une</h4>
+              <div class="pbar"><i></i></div>
+              <span class="pill">▶ Reprendre</span>
+            </div>
+            <div class="rail">
+              <span class="t" style="--p:62%"></span><span class="t" style="--p:0"></span>
+              <span class="t" style="--p:24%"></span><span class="t" style="--p:0"></span>
+              <span class="t" style="--p:88%"></span><span class="t" style="--p:0"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="wrap">
-
-    <section>
-      <div class="sec-head"><span class="k">Nouveau</span><h2>Refonte interface <span style="color:var(--accent);font-size:1rem;">· v1.9</span></h2></div>
+  <section class="block" id="features">
+    <div class="wrap">
+      <div class="eyebrow">Interface premium · v1.9</div>
+      <h2>Une expérience type plateforme</h2>
+      <p class="lead">Accueil et catalogues repensés : grands visuels, reprise intelligente et navigation fluide.</p>
       <div class="grid">
-        <div class="card"><div class="ico">🎬</div><h3>Accueil cinématographique</h3><p>Grand hero (backdrop TMDB), synopsis, <b>Saison · Épisode</b>, barre de progression et <b>temps restant</b>. Cartes « Reprendre » enrichies.</p></div>
-        <div class="card"><div class="ico">▶️</div><h3>Reprise + progression</h3><p>Films &amp; séries repris à la bonne position, <b>barre de progression</b> et « ⏳ temps restant » directement sur les vignettes.</p></div>
-        <div class="card"><div class="ico">🍿</div><h3>Films &amp; Séries façon streaming</h3><p>Hero + rangées <b>Tendances · Dernières sorties · Récemment ajoutés · 4K • UHD</b>, constantes par catégorie.</p></div>
-        <div class="card"><div class="ico">📈</div><h3>Classement TMDB</h3><p>Rangée « Tendances » <b>numérotée</b> (rang 1..N) triée par note.</p></div>
-        <div class="card"><div class="ico">🗂️</div><h3>Pagination &amp; catégories</h3><p>Grilles paginées (60/page) et <b>liste de catégories en chips</b> à la place du menu déroulant.</p></div>
-        <div class="card"><div class="ico">🗓️</div><h3>EPG enrichi</h3><p>Blocs avec <b>plage horaire</b>, description et marqueur <b>🔴 en direct</b> + barre de progression.</p></div>
-        <div class="card"><div class="ico">⏪</div><h3>Catch-up toujours dispo</h3><p>Bouton ⏪ sur chaque chaîne du Guide TV + « Revoir » dans le lecteur.</p></div>
-        <div class="card"><div class="ico">⚙️</div><h3>Réglages en onglets</h3><p>Navigation à gauche, contenu à droite, pleine largeur — fini le scroll interminable.</p></div>
+        <div class="card"><div class="ic">🎬</div><h3>Accueil cinématographique</h3><p>Hero plein cadre (backdrop TMDB), synopsis, Saison · Épisode, barre de progression et temps restant.</p></div>
+        <div class="card"><div class="ic">▶️</div><h3>Reprise &amp; progression</h3><p>Films &amp; séries repris à la bonne position, barre de progression et « ⏳ temps restant » sur les vignettes.</p></div>
+        <div class="card"><div class="ic">🍿</div><h3>Films &amp; Séries</h3><p>Rangées Tendances, Dernières sorties, Récemment ajoutés, 4K • UHD. Pagination &amp; catégories en chips.</p></div>
+        <div class="card"><div class="ic">📈</div><h3>Classement TMDB</h3><p>Rangée « Tendances » numérotée, affiches, notes, synopsis, genres et casting avec photos.</p></div>
+        <div class="card"><div class="ic">🗓️</div><h3>Guide TV enrichi</h3><p>Programmes avec plage horaire, description et marqueur 🔴 en direct. EPG XMLTV &amp; sport en secours.</p></div>
+        <div class="card"><div class="ic">⏪</div><h3>Catch-up / Replay</h3><p>Rediffusions depuis le Guide TV et le lecteur (timeshift Xtream), groupées par jour.</p></div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section>
-      <div class="sec-head"><span class="k">Nouveau</span><h2>Nouveautés <span style="color:var(--accent);font-size:1rem;">· v1.8</span></h2></div>
+  <section class="block">
+    <div class="wrap">
+      <div class="eyebrow">Puissant</div>
+      <h2>Bien plus qu'un lecteur</h2>
       <div class="grid">
-        <div class="card"><div class="ico">⏪</div><h3>Catch-up / Archive</h3><p>Revois les programmes passés des chaînes avec archive (timeshift) : bouton <b>Revoir</b> dans le lecteur et programmes rejouables depuis le Guide TV.</p></div>
-        <div class="card"><div class="ico">📡</div><h3>Sources multiples</h3><p>Ajoute des playlists <b>M3U</b> et des comptes <b>Xtream secondaires</b> : leurs chaînes fusionnent dans Live TV.</p></div>
-        <div class="card"><div class="ico">🎬</div><h3>Enrichissement TMDB</h3><p>Affiches, notes, synopsis, genres et <b>casting</b> pour films &amp; séries, avec fiche détaillée.</p></div>
-        <div class="card"><div class="ico">🅣</div><h3>Synchronisation Trakt</h3><p>Marque automatiquement vu films &amp; épisodes, ajoute à la watchlist (liaison par code ou PIN).</p></div>
-        <div class="card"><div class="ico">📊</div><h3>Tampon &amp; stats réseau</h3><p>Profil de tampon réglable (faible latence / stable) et overlay temps réel (débit, résolution, images perdues, latence).</p></div>
-        <div class="card"><div class="ico">📶</div><h3>Test de débit</h3><p>Diagnostic du fournisseur : latence API, débit du flux, connexions actives/max, expiration.</p></div>
-        <div class="card"><div class="ico">🔄</div><h3>Mise à jour auto</h3><p>Rafraîchit périodiquement chaînes, films, séries et EPG en arrière-plan.</p></div>
-        <div class="card"><div class="ico">🔍</div><h3>Recherche globale + EPG</h3><p>Une seule recherche pour les chaînes, films, séries et les <b>programmes EPG</b>.</p></div>
+        <div class="card"><div class="ic">📺</div><h3>Live TV &amp; vraie 4K</h3><p>Lecture 1 clic (mpegts natif, fallback HLS). Transcodage matériel automatique des flux réellement ≥ 2160p.</p></div>
+        <div class="card"><div class="ic">⏺️</div><h3>Enregistrement programmé</h3><p>MP4 sans ré-encodage, début/fin planifiés &amp; arrêt auto, badge REC en direct, export WhatsApp.</p></div>
+        <div class="card"><div class="ic">📡</div><h3>Restream &amp; lien public</h3><p>Une connexion fournisseur partagée sur le LAN, lien public Cloudflare protégé par token de session.</p></div>
+        <div class="card"><div class="ic">⬇️</div><h3>Téléchargements</h3><p>Films, saison entière ou série complète, mis en file (respect de la limite 1 connexion).</p></div>
+        <div class="card"><div class="ic">🔗</div><h3>Sources multiples</h3><p>Playlists M3U/M3U8 et comptes Xtream secondaires fusionnés dans Live TV.</p></div>
+        <div class="card"><div class="ic">🎯</div><h3>Trakt &amp; multi-comptes</h3><p>Sync Trakt (vu auto à ~90 %, watchlist), plusieurs profils Xtream, thème clair/sombre.</p></div>
       </div>
-    </section>
-
-    <section>
-      <div class="sec-head"><span class="k">Regarder</span><h2>Live, films, séries &amp; guide</h2></div>
-      <div class="grid">
-        <div class="card"><div class="ico">📺</div><h3>Live TV Xtream</h3><p>Connexion Xtream Codes, navigation par catégories et par qualité (8K/4K/FHD/HD/SD), reconnexion auto au lancement.</p></div>
-        <div class="card"><div class="ico">🎞️</div><h3>Films (VOD)</h3><p>Catalogue de films par catégorie, affiches, lecture en un clic, téléchargement possible.</p></div>
-        <div class="card"><div class="ico">📚</div><h3>Séries</h3><p>Saisons &amp; épisodes, fiche détaillée, <b>enchaînement automatique</b> de l'épisode suivant.</p></div>
-        <div class="card"><div class="ico">🗓️</div><h3>Guide TV (EPG)</h3><p>Grille des programmes en cours et à venir par catégorie, noms longs sur deux lignes.</p></div>
-        <div class="card"><div class="ico">🏠</div><h3>Accueil configurable</h3><p>Choisis les catégories affichées en rangées (Live / Films / Séries) avec un bouton « tout voir ».</p></div>
-        <div class="card"><div class="ico">🔀</div><h3>Sidebar de zapping</h3><p>Liste des chaînes de la même catégorie dans le lecteur, pour zapper sans revenir à la grille.</p></div>
-        <div class="card"><div class="ico">🔎</div><h3>Recherche &amp; favoris</h3><p>Recherche globale, favoris et « vu récemment » pour reprendre vite.</p></div>
-        <div class="card"><div class="ico">⚽</div><h3>EPG sport enrichi</h3><p>Programme des chaînes sport (beIN, Canal+, Eurosport…) complété par un service maison : <a href="https://ktv-epg.khalilbenaz.workers.dev/health">ktv-epg</a> (corrigeable sans mettre à jour l'app).</p></div>
+      <div class="pills">
+        <span class="pill2">⚙️ Réglages en onglets</span>
+        <span class="pill2">🔎 Recherche globale</span>
+        <span class="pill2">📊 Stats réseau</span>
+        <span class="pill2">🔊 Audio / sous-titres</span>
+        <span class="pill2">🗗 Picture-in-Picture</span>
+        <span class="pill2">⌨️ Raccourcis clavier</span>
+        <span class="pill2">🔀 Sidebar de zapping</span>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section>
-      <div class="sec-head"><span class="k">Qualité</span><h2>Vraie 4K, automatiquement</h2></div>
-      <div class="grid">
-        <div class="card"><div class="ico">🎬</div><h3>Détection 4K réelle</h3><p>KTV sonde la <b>vraie résolution</b> du flux : seules les chaînes réellement ≥ 2160p sont traitées en 4K (fini les fausses « 4K » 1080p mal étiquetées).</p></div>
-        <div class="card"><div class="ico">⚡</div><h3>Transcodage matériel</h3><p>Les vraies 4K (HEVC 10 bits) sont transcodées par le GPU — VideoToolbox (Mac), NVENC/QSV/AMF (Windows) — pour une lecture fluide.</p></div>
-        <div class="card"><div class="ico">🧊</div><h3>Anti-coupure</h3><p>Tampons ajustés pour absorber les micro-coupures du fournisseur sans figer l'image.</p></div>
-        <div class="card"><div class="ico">🧠</div><h3>Mémorisé par chaîne</h3><p>La décision (4K ou non) est gardée en mémoire : sondée une seule fois, instantanée ensuite.</p></div>
+  <section class="block">
+    <div class="wrap">
+      <div class="eyebrow">Démarrer</div>
+      <h2>En 3 étapes</h2>
+      <div class="steps">
+        <div class="step"><h3>Télécharger</h3><p>Récupère la dernière version macOS ou Windows depuis les releases GitHub.</p></div>
+        <div class="step"><h3>Connecter</h3><p>Saisis l'URL de ton serveur Xtream, ton utilisateur et ton mot de passe.</p></div>
+        <div class="step"><h3>Profiter</h3><p>Live, Films, Séries, Guide &amp; catch-up — reprise et favoris suivent automatiquement.</p></div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section>
-      <div class="sec-head"><span class="k">Lecteur</span><h2>Confort de lecture <span style="color:var(--accent);font-size:1rem;">· nouveau v1.7</span></h2></div>
-      <div class="grid">
-        <div class="card"><div class="ico">↩️</div><h3>Reprise de lecture</h3><p>Films &amp; séries reprennent là où tu t'étais arrêté — bandeau « ▶ Reprise à … » avec option <b>Recommencer</b>. La rangée « Reprendre » de l'accueil se met à jour en temps réel.</p></div>
-        <div class="card"><div class="ico">🔊</div><h3>Pistes audio &amp; sous-titres</h3><p>Sélecteurs 🔊 / 💬 dans le lecteur pour changer de langue audio ou activer les sous-titres (flux HLS et pistes natives).</p></div>
-        <div class="card"><div class="ico">🗗</div><h3>Picture-in-Picture &amp; plein écran</h3><p>Continue de regarder dans une mini-fenêtre flottante, ou passe en plein écran d'un clic (ou touche <code>f</code>).</p></div>
-        <div class="card"><div class="ico">⌨️</div><h3>Raccourcis clavier</h3><p><code>espace</code> pause · <code>←</code>/<code>→</code> ±10 s · <code>↑</code>/<code>↓</code> volume · <code>m</code> muet · <code>f</code> plein écran · <code>p</code> PiP · <code>a</code>/<code>c</code> audio/sous-titres · <code>n</code> épisode suivant.</p></div>
-        <div class="card"><div class="ico">👥</div><h3>Multi-comptes</h3><p>Plusieurs comptes Xtream mémorisés : sélectionne un profil à la connexion, reconnexion automatique au dernier utilisé.</p></div>
-        <div class="card"><div class="ico">🌗</div><h3>Thème clair / sombre</h3><p>Bascule clair/sombre d'un clic, préférence mémorisée. Bannière d'accueil noir &amp; orange dans les deux thèmes.</p></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-head"><span class="k">Enregistrer</span><h2>Enregistrement &amp; programmation</h2></div>
-      <div class="grid">
-        <div class="card"><div class="ico">⏺</div><h3>Enregistrement MP4</h3><p>Enregistre une chaîne en MP4 sans ré-encodage. Fichiers sains et lisibles partout (VLC, QuickTime).</p></div>
-        <div class="card"><div class="ico">📅</div><h3>Programmation + arrêt auto</h3><p>Programme un enregistrement (début immédiat ou à l'heure, fin par durée ou heure précise). Raccourcis 15 min → 2 h et « ⚽ Match foot (2 h 30) ».</p></div>
-        <div class="card"><div class="ico">🔴</div><h3>Badge REC en direct</h3><p>Indicateur dans la barre du haut : chaîne, heure de début, durée restante, progression et <b>taille du fichier en direct</b>.</p></div>
-        <div class="card"><div class="ico">📼</div><h3>En cours · Programmés · Enregistrés</h3><p>Tout le suivi au même endroit, avec filtre par chaîne, recherche et pagination.</p></div>
-        <div class="card"><div class="ico">📱</div><h3>Export WhatsApp</h3><p>Convertit en un clic vers un MP4 compatible WhatsApp (AAC-LC + 30 fps) — son garanti au partage.</p></div>
-        <div class="card"><div class="ico">🔗</div><h3>Gestion « 1 connexion »</h3><p>Regarde la chaîne en cours d'enregistrement sans 2ᵉ connexion ; avertissement clair avant tout conflit.</p></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-head"><span class="k">Partager</span><h2>Restream &amp; téléchargements</h2></div>
-      <div class="grid">
-        <div class="card"><div class="ico">📡</div><h3>Restream LAN</h3><p>Une seule connexion fournisseur partagée vers tous tes appareils du même Wi-Fi (VLC, navigateur, TV).</p></div>
-        <div class="card"><div class="ico">🌍</div><h3>Lien public sécurisé</h3><p>Crée une URL HTTPS publique (Cloudflare, gratuit) pour regarder hors du réseau local, <b>protégée par un token de session</b> (inutilisable sans le lien complet). Lecteur web dédié : <a href="https://restream-live.pages.dev">restream-live.pages.dev</a>.</p></div>
-        <div class="card"><div class="ico">⬇️</div><h3>Téléchargements</h3><p>Films, <b>saison entière</b> ou <b>série complète</b>, mis en file et traités un par un, avec tiroir de progression.</p></div>
-        <div class="card"><div class="ico">🛡️</div><h3>Robuste</h3><p>Reconnexion, nettoyage automatique des processus orphelins (la connexion reste libre) et mises à jour intégrées.</p></div>
-      </div>
-    </section>
-
-    <section>
-      <div class="sec-head"><span class="k">EPG maison</span><h2>Comment utiliser l'EPG maison</h2></div>
-      <p class="note">Dans KTV, c'est <b>automatique</b> : pour les chaînes sport sans guide fourni par l'abonnement, l'app interroge ce service et affiche le programme — rien à configurer. La section ci-dessous s'adresse à ceux qui veulent <b>interroger l'API directement</b> (script, autre app, autre lecteur).</p>
-
-      <p style="color:var(--muted);margin:0 0 10px;">Base : <code>https://ktv-epg.khalilbenaz.workers.dev</code> — réponses JSON (CORS ouvert), grille rafraîchie ~toutes les 30 min (source : programme-tv).</p>
-
+  <section class="block" id="epg">
+    <div class="wrap">
+      <div class="eyebrow">EPG maison</div>
+      <h2>API EPG sport ouverte</h2>
+      <p class="lead">Pour les chaînes sport sans guide fourni, KTV interroge automatiquement un service maison. Tu peux aussi l'appeler directement (JSON, CORS ouvert).</p>
       <ul class="api">
-        <li><b>GET <code>/sport</code></b> — grille du jour de toutes les chaînes sport (beIN Sports 1/2/3, Canal+ Sport, Eurosport, L'Équipe…). Renvoie <code>{ day, tz, channels: { &lt;chaîne&gt;: [ { st, en, title } ] } }</code>.</li>
-        <li><b>GET <code>/epg?channel=beinsport1</code></b> — programme <b>en cours + suivant</b> d'une chaîne : <code>{ channel, cur:{st,title,en}, next:{st,title,en} }</code>.</li>
-        <li><b>GET <code>/health</code></b> — état du service : <code>{ "ok": true }</code>.</li>
+        <li><b>GET <code>/sport</code></b> — grille du jour de toutes les chaînes sport.</li>
+        <li><b>GET <code>/epg?channel=beinsport1</code></b> — programme en cours + suivant d'une chaîne.</li>
+        <li><b>GET <code>/health</code></b> — état du service.</li>
       </ul>
-
       <pre><span class="c"># Programme en cours et suivant de beIN Sports 1</span>
-curl "https://ktv-epg.khalilbenaz.workers.dev/epg?channel=beinsport1"
+curl "https://ktv-epg.khalilbenaz.workers.dev/epg?channel=beinsport1"</pre>
+      <p class="note"><b>st</b> / <b>en</b> = horodatages Unix (UTC), à convertir côté client. Noms normalisés : <code>beinsport1</code>, <code>eurosport2</code>, <code>lequipe</code>… Le parsing se corrige côté serveur, sans mettre à jour l'app.</p>
+    </div>
+  </section>
 
-<span class="c"># → </span>{"channel":"beinsport1",
-     "cur": {"st":1781915400,"title":"…","en":1781916600},
-     "next":{"st":1781916600,"title":"…","en":1781917800}}</pre>
-
-      <p class="note"><b>st</b> / <b>en</b> = horodatages <b>Unix en secondes (UTC)</b> — à convertir dans le fuseau de l'utilisateur côté client. Les noms de chaînes sont <b>normalisés</b> (minuscules, sans accents/espaces) : <code>beinsport1</code>, <code>eurosport2</code>, <code>canalsport360</code>, <code>lequipe</code>… Avantage : le parsing se corrige <b>côté serveur</b>, sans mettre à jour l'app.</p>
-    </section>
-
-    <section>
-      <div class="sec-head"><span class="k">Installer</span><h2>Installation</h2></div>
-      <div class="os-cols">
-        <ol class="steps">
-          <li><b>macOS</b> — décompresse <code>KTV-macos-arm64.zip</code>.</li>
-          <li>Glisse <b>KTV</b> dans le dossier <b>Applications</b>.</li>
-          <li><b>Clic-droit → Ouvrir</b> (app non notarisée — une seule fois).</li>
-          <li>Si bloqué : <code>xattr -dr com.apple.quarantine "/Applications/KTV.app"</code></li>
-        </ol>
-        <ol class="steps">
-          <li><b>Windows</b> — décompresse <code>KTV-windows-x64.zip</code>.</li>
-          <li>Lance <b>KTV.exe</b>.</li>
-          <li>Si SmartScreen apparaît : <b>Informations complémentaires</b> → <b>Exécuter quand même</b>.</li>
-        </ol>
+  <section class="block" id="install">
+    <div class="wrap">
+      <div class="eyebrow">Installer</div>
+      <h2>Installation</h2>
+      <div class="steps">
+        <div class="step"><h3>macOS</h3><p>Décompresse <code>KTV-macos-arm64.zip</code>, glisse <b>KTV</b> dans Applications, puis <b>clic droit → Ouvrir</b> (app non notarisée).</p></div>
+        <div class="step"><h3>Si bloqué (macOS)</h3><p><code>xattr -dr com.apple.quarantine "/Applications/KTV.app"</code></p></div>
+        <div class="step"><h3>Windows</h3><p>Décompresse <code>KTV-windows-x64.zip</code> et lance <b>KTV.exe</b> (SmartScreen → Informations complémentaires → Exécuter quand même).</p></div>
       </div>
-      <p class="note">macOS <b>Apple Silicon (M1/M2/M3+)</b> · Windows <b>x64</b>. Abonnement à <b>1 connexion</b> : lecture, enregistrement et restream partagent un relais local unique. Binaires construits automatiquement via GitHub Actions.</p>
-    </section>
-  </main>
+      <p class="note">macOS <b>Apple Silicon (M1/M2/M3+)</b> · Windows <b>x64</b>. Binaires construits automatiquement via GitHub Actions à chaque release.</p>
+    </div>
+  </section>
 
   <footer>
     <div class="wrap">
-      <p>KTV — projet open-source sous licence MIT · <a href="https://github.com/khalilbenaz/ktv">github.com/khalilbenaz/ktv</a></p>
+      <p>KTV — projet open-source sous licence MIT. Construit avec Electron · ffmpeg-static · hls.js · mpegts.js · TMDB · Trakt.</p>
+      <p style="margin-top:8px"><a href="https://github.com/khalilbenaz/ktv">github.com/khalilbenaz/ktv</a> · <a href="https://github.com/khalilbenaz/ktv/releases/latest">Télécharger</a> · <a href="https://restream-live.pages.dev">Restream</a></p>
     </div>
   </footer>
 </body>
