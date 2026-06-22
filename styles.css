@@ -130,6 +130,8 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 
 /* HOME ROWS */
 .rows { display: flex; flex-direction: column; gap: 30px; }
+/* Espace le hero (« rectangle » du haut) des rangées qu'il précède */
+#homeDynamic { display: flex; flex-direction: column; gap: 30px; }
 .home-row h2 { font-size: 17px; margin-bottom: 13px; display: flex; align-items: center; }
 .see-all { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .see-all:hover { color: var(--accent2); }
@@ -151,6 +153,12 @@ input, button, select { font-family: inherit; font-size: 14px; outline: none; }
 .rc-thumb.live img { object-fit: contain; padding: 16px; }
 .rc-badge { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.72); color: var(--accent2); font-size: 10px; font-weight: 800; letter-spacing: .4px; padding: 2px 7px; border-radius: 5px; }
 .rc-title { width: 240px; font-size: 13px; font-weight: 600; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Barres de progression de reprise (vignettes / cartes / épisodes) */
+.rc-prog, .p-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0,0,0,.55); }
+.rc-prog > div, .p-prog > div { height: 100%; background: var(--accent); }
+.ep-prog { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--line); overflow: hidden; }
+.ep-prog > div { height: 100%; background: var(--accent); }
+.ep-item.resuming .ep-t { color: var(--accent2); }
 
 /* HERO */
 .hero { position: relative; height: 260px; border-radius: 18px; overflow: hidden; background: linear-gradient(120deg, #2a1206, #3a1a08 40%, #10121a); }

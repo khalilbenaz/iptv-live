@@ -364,6 +364,7 @@ async function ktvRunSearch(q) {
   if (typeof observeEpgCards === 'function') try { observeEpgCards(); } catch {}
   root.appendChild(ktvResultSection('🎬 Films', vHit.length, vHit.map((m) => posterCard({
     title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
+    progress: (typeof resumeProgress === 'function' ? resumeProgress('movie:' + m.stream_id) : 0),
     onClick: () => ktvOpenMovie(m), tmdb: { type: 'movie', title: m.name, year: yearOf(m.name) },
     onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); },
   }))));
