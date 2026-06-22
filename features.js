@@ -479,34 +479,6 @@ async function ktvTmdbDetails(type, id) {
   return v;
 }
 
-// Clés YouTube candidates des bandes-annonces (TMDB /videos), triées par pertinence.
-// Renvoie un tableau (≤ 6) : le lecteur essaie la suivante si une refuse l'intégration.
-async function ktvTrailerKey(type, id) {
-  const tkey = ktvSetting('tmdbKey');
-  if (!ktvSetting('tmdbEnabled') || !tkey) return [];
-  const ck = 'yt2|' + type + '|' + id;
-  const c = ktvTmdbCacheGet(ck); if (c !== undefined) return c;
-  const path = 'https://api.themoviedb.org/3/' + (type === 'tv' ? 'tv' : 'movie') + '/' + id + '/videos';
-  const fetchVids = async (lang) => {
-    try {
-      const r = await fetch(path + (lang ? ('?language=' + lang) : ''), { headers: { Authorization: 'Bearer ' + tkey, accept: 'application/json' } });
-      if (!r.ok) return [];
-      const d = await r.json(); return (d && d.results) || [];
-    } catch { return []; }
-  };
-  const rank = (x) => (x.type === 'Trailer' && x.official) ? 0 : (x.type === 'Trailer') ? 1 : (x.type === 'Teaser') ? 2 : (x.type === 'Clip') ? 3 : 4;
-  const lang = ktvSetting('tmdbLang') || 'fr-FR';
-  const all = [].concat(await fetchVids(lang), await fetchVids('en-US'), await fetchVids(null));
-  const seen = new Set();
-  const keys = all
-    .filter((x) => x.site === 'YouTube' && x.key && !seen.has(x.key) && seen.add(x.key))
-    .sort((a, b) => rank(a) - rank(b))
-    .slice(0, 6)
-    .map((x) => x.key);
-  ktvTmdbCacheSet(ck, keys);
-  return keys;
-}
-
 let ktvTmdbObs = null;
 function ktvTmdbObserver() {
   if (!ktvTmdbObs && 'IntersectionObserver' in window) {
@@ -577,7 +549,6 @@ async function ktvOpenMovie(m) {
   const wl = $('movieWatchlist');
   wl.classList.toggle('hidden', !ktvTraktConnected());
   wl.onclick = () => ktvTraktWatchlist({ type: 'movie', title: m.name, year: yearOf(m.name), tmdbId: m._tmdbId });
-  const tr = $('movieTrailer'); if (tr) { tr.classList.add('hidden'); tr.onclick = null; }
 
   if (!ktvSetting('tmdbEnabled')) { $('moviePlot').textContent = m.plot || m.description || 'Aucune description.'; return; }
   try {
@@ -599,10 +570,6 @@ async function ktvOpenMovie(m) {
     if (info.vote_average > 0) bits.push('★ ' + Number(info.vote_average).toFixed(1));
     $('movieMeta').textContent = bits.join('  ·  ');
     ktvRenderCast($('movieCast'), info.credits && info.credits.cast);
-    if (tr && typeof ktvTrailerKey === 'function' && typeof ktvPlayTrailer === 'function') {
-      const yts = await ktvTrailerKey('movie', hit.id);
-      if (ktvCurMovie === m && yts && yts.length) { tr.onclick = () => ktvPlayTrailer(yts); tr.classList.remove('hidden'); }
-    }
   } catch { $('moviePlot').textContent = m.plot || 'Aucune information.'; }
 }
 
@@ -625,11 +592,6 @@ async function ktvEnrichSeriesModal(s, info) {
     if (hit.poster_path) { const cov = $('seriesCover'); if (cov && !cov.querySelector('img')) cov.innerHTML = `<img src="${TMDB_IMG}w342${hit.poster_path}">`; }
     const det = await ktvTmdbDetails('tv', hit.id);
     if (det && det.credits) ktvRenderCast($('seriesCast'), det.credits.cast);
-    const st = $('seriesTrailer');
-    if (st && typeof ktvTrailerKey === 'function' && typeof ktvPlayTrailer === 'function') {
-      const yts = await ktvTrailerKey('tv', hit.id);
-      if (yts && yts.length) { st.onclick = () => ktvPlayTrailer(yts); st.classList.remove('hidden'); }
-    }
   } catch {}
 }
 

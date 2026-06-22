@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -80,31 +80,10 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false,
-      webviewTag: true
+      nodeIntegration: false
     }
   });
   win.maximize();
-
-  // Embed YouTube depuis file:// : sans Referer/Origin web valide, le lecteur
-  // renvoie « Erreur de configuration » (153). On présente un Referer youtube.com.
-  try {
-    const ytFilter = { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*', '*://*.googlevideo.com/*', '*://*.ytimg.com/*'] };
-    win.webContents.session.webRequest.onBeforeSendHeaders(ytFilter, (details, cb) => {
-      const h = details.requestHeaders;
-      h['Referer'] = 'https://www.youtube.com/';
-      h['Origin'] = 'https://www.youtube.com';
-      cb({ requestHeaders: h });
-    });
-  } catch (e) { /* noop */ }
-
-  // Cookie de consentement pour la page watch YouTube (webview bande-annonce) → évite le mur RGPD.
-  try {
-    const ytSes = session.fromPartition('persist:youtube');
-    ytSes.cookies.set({ url: 'https://www.youtube.com', name: 'SOCS', value: 'CAISNggA', domain: '.youtube.com', path: '/', secure: true }).catch(() => {});
-    ytSes.cookies.set({ url: 'https://www.youtube.com', name: 'CONSENT', value: 'YES+', domain: '.youtube.com', path: '/', secure: true }).catch(() => {});
-  } catch (e) { /* noop */ }
-
   win.loadFile('index.html');
 }
 

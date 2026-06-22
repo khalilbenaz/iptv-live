@@ -538,7 +538,6 @@ async function openSeries(s) {
   $('seriesPlot').textContent = 'Chargement…';
   $('seasonSelect').innerHTML = '';
   $('episodeList').innerHTML = '';
-  { const st = $('seriesTrailer'); if (st) { st.classList.add('hidden'); st.onclick = null; } }
   const cover = $('seriesCover');
   cover.innerHTML = (s.cover || s.stream_icon) ? `<img src="${escapeHtml(s.cover || s.stream_icon)}">` : '🎞️';
   $('seriesModal').classList.remove('hidden');
@@ -938,66 +937,6 @@ function recentCard(r) {
   return card;
 }
 
-// Charge l'API IFrame YouTube une seule fois (permet de détecter les erreurs d'intégration).
-let _ytApiPromise = null;
-function ensureYTApi() {
-  if (window.YT && window.YT.Player) return Promise.resolve();
-  if (_ytApiPromise) return _ytApiPromise;
-  _ytApiPromise = new Promise((resolve) => {
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { try { if (typeof prev === 'function') prev(); } catch {} resolve(); };
-    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(s);
-  });
-  return _ytApiPromise;
-}
-
-// Bande-annonce dans un overlay : lecteur embed propre (sans UI YouTube). Si une vidéo
-// refuse l'intégration, on passe à la candidate suivante ; sinon lien « Ouvrir sur YouTube ».
-let _ytPlayer = null;
-function ktvPlayTrailer(keys) {
-  const list = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
-  if (!list.length) return;
-  let ov = document.getElementById('trailerOverlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'trailerOverlay';
-    ov.className = 'trailer-overlay hidden';
-    ov.innerHTML = '<div class="trailer-box"><button class="trailer-x" title="Fermer (Échap)">✕</button><div class="trailer-frame"><div id="ytMount"></div></div><a class="trailer-yt" target="_blank" rel="noreferrer">Ouvrir sur YouTube ↗</a></div>';
-    document.body.appendChild(ov);
-    ov._close = () => {
-      ov.classList.add('hidden');
-      try { if (_ytPlayer && _ytPlayer.destroy) _ytPlayer.destroy(); } catch {}
-      _ytPlayer = null;
-      const m = ov.querySelector('.trailer-frame'); if (m) m.innerHTML = '<div id="ytMount"></div>';
-    };
-    ov.querySelector('.trailer-x').onclick = ov._close;
-    ov.onclick = (e) => { if (e.target === ov) ov._close(); };
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ov.classList.contains('hidden')) ov._close(); });
-  }
-  const link = ov.querySelector('.trailer-yt');
-  link.href = 'https://www.youtube.com/watch?v=' + list[0];
-  ov.querySelector('.trailer-frame').innerHTML = '<div id="ytMount"></div>';
-  ov.classList.remove('hidden');
-  ensureYTApi().then(() => {
-    let idx = 0;
-    const tryNext = () => {
-      if (idx >= list.length) return; // toutes refusées → l'overlay garde le lien YouTube
-      const k = list[idx++];
-      link.href = 'https://www.youtube.com/watch?v=' + k;
-      try { if (_ytPlayer && _ytPlayer.destroy) _ytPlayer.destroy(); } catch {}
-      ov.querySelector('.trailer-frame').innerHTML = '<div id="ytMount"></div>';
-      _ytPlayer = new window.YT.Player('ytMount', {
-        host: 'https://www.youtube-nocookie.com',
-        videoId: k,
-        playerVars: { autoplay: 1, rel: 0, modestbranding: 1, playsinline: 1 },
-        events: { onError: () => tryNext() },
-      });
-    };
-    tryNext();
-  });
-}
-
 function buildHero(item) {
   const IMG = 'https://image.tmdb.org/t/p/';
   const hero = document.createElement('div');
@@ -1062,15 +1001,6 @@ function buildHero(item) {
         if (!hit) return;
         if (hit.backdrop_path) art.style.backgroundImage = `url(${IMG}w1280${hit.backdrop_path})`;
         if (hit.overview && !plot.textContent) plot.textContent = hit.overview;
-        // Bande-annonce (clé YouTube via TMDB)
-        if (typeof ktvTrailerKey === 'function') {
-          const yts = await ktvTrailerKey(type, hit.id);
-          if (yts && yts.length) {
-            const tb = document.createElement('button'); tb.className = 'btn ghost'; tb.textContent = '▶ Bande-annonce';
-            tb.onclick = () => ktvPlayTrailer(yts);
-            btns.appendChild(tb);
-          }
-        }
       } catch {}
     })();
   }

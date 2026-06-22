@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; media-src * blob: data:; connect-src *; img-src * data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com">
+        content="default-src 'self'; media-src * blob: data:; connect-src *; img-src * data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <title>KTV</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -331,7 +331,6 @@
             <p id="seriesPlot" class="hint"></p>
             <div class="series-actions">
               <select id="seasonSelect" title="Saison"></select>
-              <button id="seriesTrailer" class="ghost hidden">🎬 Bande-annonce</button>
               <button id="dlSeasonBtn" class="ghost">⬇ Télécharger la saison</button>
               <button id="dlSeriesBtn" class="ghost">⬇ Toute la série</button>
             </div>
@@ -374,7 +373,6 @@
             <div id="movieCast" class="cast-box hidden"></div>
             <div class="series-actions">
               <button id="moviePlay" class="copy" style="margin-top:0;">▶ Regarder</button>
-              <button id="movieTrailer" class="ghost hidden">🎬 Bande-annonce</button>
               <button id="movieDownload" class="ghost">⬇ Télécharger</button>
               <button id="movieWatchlist" class="ghost hidden">🅣 Watchlist</button>
             </div>
