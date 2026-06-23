@@ -70,6 +70,7 @@
 
         <!-- LIVE -->
         <section class="view" id="view-live">
+          <div id="liveFavRail" class="live-favrail" style="display:none"></div>
           <div class="subbar">
             <select id="catSelect" title="Catégorie"></select>
             <select id="qualSelect" title="Qualité">
@@ -409,6 +410,12 @@
         <div id="traktMsg" class="hint" style="margin-top:10px;"></div>
       </div>
     </div>
+  </div>
+
+  <div id="chanPreview" class="chan-preview" aria-hidden="true">
+    <video muted playsinline></video>
+    <div class="cp-spin"></div>
+    <div class="cp-title"></div>
   </div>
 
   <script src="node_modules/hls.js/dist/hls.min.js"></script>

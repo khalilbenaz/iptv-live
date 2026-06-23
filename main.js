@@ -109,6 +109,43 @@ function fetchJson(url) {
     }).on('error', reject);
   });
 }
+// Détermine les plateformes concernées par une release.
+// Les builds publient toujours les deux assets (mac + win) : on ne peut donc pas
+// se fier à la présence d'asset. On lit donc une intention explicite, puis le titre.
+//   1) Marqueur explicite dans les notes : "Plateformes: windows" / "Platforms: mac, win",
+//      ou un tag "[win-only]" / "[mac-only]" / "[all]"
+//   2) À défaut, heuristique sur le TITRE seul : "… Windows" ⇒ win, "… macOS/Mac" ⇒ mac
+//   3) À défaut : toutes les plateformes (rétro-compatible)
+function releasePlatforms(rel) {
+  const both = { mac: true, win: true };
+  const body = String(rel.body || '');
+  const title = String(rel.name || '');
+  const blob = title + '\n' + body;
+
+  if (/\[\s*all\s*\]/i.test(blob)) return both;
+  const winOnly = /\[\s*(?:win|windows)[-\s]?only\s*\]/i.test(blob);
+  const macOnly = /\[\s*(?:mac|macos|osx)[-\s]?only\s*\]/i.test(blob);
+  if (winOnly && !macOnly) return { mac: false, win: true };
+  if (macOnly && !winOnly) return { mac: true, win: false };
+
+  const m = /(?:platforms?|plateformes?)\s*[:=]\s*([^\n\r]+)/i.exec(body);
+  if (m) {
+    const t = m[1].toLowerCase();
+    if (/\ball\b|\btous?\b|\btoutes?\b/.test(t)) return both;
+    const win = /\b(?:win|windows)\b/.test(t);
+    const mac = /\b(?:mac|macos|osx|darwin)\b/.test(t);
+    if (win || mac) return { mac, win };
+  }
+
+  // Heuristique sur le titre uniquement (les titres « Corrections Windows » sont intentionnels ;
+  // une simple mention dans le corps des notes ne suffit pas à exclure une plateforme).
+  const tw = /\b(?:win|windows)\b/i.test(title);
+  const tm = /\b(?:mac|macos|osx)\b/i.test(title);
+  if (tw && !tm) return { mac: false, win: true };
+  if (tm && !tw) return { mac: true, win: false };
+
+  return both;
+}
 async function checkForUpdates(silent) {
   try {
     const rel = await fetchJson(`https://api.github.com/repos/${REPO}/releases/latest`);
@@ -118,7 +155,23 @@ async function checkForUpdates(silent) {
       if (!silent && win) dialog.showMessageBox(win, { type: 'info', message: 'KTV est à jour', detail: 'Version ' + app.getVersion(), buttons: ['OK'] });
       return;
     }
-    const dmg = (rel.assets || []).find((a) => /\.dmg$/i.test(a.name));
+    // La mise à jour ne concerne-t-elle pas cette plateforme ? On ne notifie pas
+    // (Mac n'affiche pas une release purement Windows et inversement).
+    const isMac = process.platform === 'darwin';
+    const plats = releasePlatforms(rel);
+    if (!(isMac ? plats.mac : plats.win)) {
+      if (!silent && win) dialog.showMessageBox(win, {
+        type: 'info',
+        message: 'Aucune mise à jour pour votre système',
+        detail: `La version ${latest} ne concerne que ${isMac ? 'Windows' : 'macOS'}.`,
+        buttons: ['OK'],
+      });
+      return;
+    }
+    // Asset correspondant à la plateforme courante (sinon page de la release).
+    const asset = (rel.assets || []).find((a) => isMac
+      ? /mac|macos|osx|darwin|\.dmg$/i.test(a.name)
+      : /win|windows|\.exe$/i.test(a.name));
     const r = await dialog.showMessageBox(win, {
       type: 'info',
       message: `Nouvelle version disponible : ${latest}`,
@@ -127,7 +180,7 @@ async function checkForUpdates(silent) {
       defaultId: 0, cancelId: 1,
     });
     if (r.response === 0) {
-      shell.openExternal(dmg ? dmg.browser_download_url : (rel.html_url || `https://github.com/${REPO}/releases/latest`));
+      shell.openExternal(asset ? asset.browser_download_url : (rel.html_url || `https://github.com/${REPO}/releases/latest`));
     }
   } catch (e) {
     if (!silent && win) dialog.showMessageBox(win, { type: 'warning', message: 'Vérification impossible', detail: e.message, buttons: ['OK'] });

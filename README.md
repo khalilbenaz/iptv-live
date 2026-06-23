@@ -8,7 +8,14 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 > Anciennement « IPTV Live ». Le dépôt et l'application ont été renommés **KTV** (bundle id `com.kba.ktv`).
 
+<!-- Captures d'écran à ajouter dans docs/screenshots/ (01-accueil.png, 02-films.png, 03-guide.png) -->
+
 ## Fonctionnalités
+
+### ✨ Nouveautés v1.10
+- **Aperçu de chaîne au survol (Live TV)** : un mini-lecteur muet se lance automatiquement au survol d'une chaîne (anti-rebond, faible latence), pour zapper à l'œil sans ouvrir le lecteur. Désactivable dans *Réglages → Lecture & tampon*.
+- **Favoris hors de la liste** : les chaînes favorites ne sont plus en tête de la liste / du sélecteur de catégories — elles disposent désormais d'un **rail dédié** en haut de l'écran Live TV, séparé de la liste.
+- **Mise à jour ciblée par plateforme** : macOS n'affiche plus une mise à jour qui ne concerne que Windows (et inversement). La plateforme concernée est déduite des notes de version (`Plateformes: …`, tags `[win-only]` / `[mac-only]` / `[all]`) ou, à défaut, du titre de la release.
 
 ### ✨ Nouveautés v1.9.2 — corrections Windows
 - **Icône d'application Windows** : `.ico` dédiée (16→256 px) au lieu de l'icône Electron par défaut, dans la barre des tâches et sur l'exécutable.

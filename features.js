@@ -22,6 +22,7 @@ const KTV_DEFAULTS = {
   traktSecret: '',
   traktScrobble: true,
   autoRefreshMin: 0,                 // 0 = désactivé
+  hoverPreview: true,                // aperçu d'une chaîne au survol (Live TV)
   fusion: true,
   sources: [],                       // [{id,type:'m3u'|'xtream',name,url?,srv?,usr?,pwd?,enabled}]
   lastRefresh: 0,
@@ -823,6 +824,11 @@ function ktvBuildSettingsExtras() {
   [['low', 'Faible latence'], ['balanced', 'Équilibré (défaut)'], ['stable', 'Stable (gros tampon)']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; if (s.bufferProfile === v) o.selected = true; bufSel.appendChild(o); });
   bufSel.onchange = () => { ktvSetSetting('bufferProfile', bufSel.value); ktvToast('Tampon : ' + bufSel.options[bufSel.selectedIndex].text + ' (prochaine lecture)'); };
   sec1.appendChild(ktvRow('Profil de tampon', bufSel));
+  const prevCb = document.createElement('label'); prevCb.className = 'cat-check';
+  const pcb = document.createElement('input'); pcb.type = 'checkbox'; pcb.checked = s.hoverPreview !== false;
+  pcb.onchange = () => { ktvSetSetting('hoverPreview', pcb.checked); if (!pcb.checked && typeof ktvStopPreview === 'function') ktvStopPreview(); };
+  prevCb.appendChild(pcb); prevCb.appendChild(document.createTextNode(' Aperçu de la chaîne au survol (Live TV)'));
+  sec1.appendChild(prevCb);
   host.appendChild(sec1);
 
   /* --- Diagnostic / débit --- */
@@ -954,3 +960,121 @@ function initFeatures() {
   ktvSetupAutoRefresh();
 }
 window.initFeatures = initFeatures;
+
+/* ===========================================================================
+   Live TV — Rail Favoris (séparé de la liste) + Aperçu au survol
+   =========================================================================== */
+
+// Rail horizontal des chaînes favorites, affiché AU-DESSUS de la liste Live TV
+// (et non plus en tête de la liste / du sélecteur de catégories).
+function ktvRenderLiveFavs() {
+  const host = document.getElementById('liveFavRail');
+  if (!host) return;
+  const favs = (window.state && Array.isArray(state.favs)) ? state.favs : [];
+  if (!favs.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = '';
+  host.innerHTML = '';
+  const h = document.createElement('div');
+  h.className = 'favrail-h';
+  h.innerHTML = `<span>★ Favoris</span><span class="favrail-count">${favs.length}</span>`;
+  const track = document.createElement('div');
+  track.className = 'favrail-track';
+  favs.forEach((f) => { if (typeof channelCard === 'function') track.appendChild(channelCard(f, false)); });
+  host.appendChild(h);
+  host.appendChild(track);
+}
+
+// ---- Aperçu (mini-lecteur muet) d'une chaîne au survol de la souris ----
+let ktvPrevTimer = null, ktvPrevPlayer = null, ktvPrevCard = null;
+
+function ktvPreviewEnabled() {
+  if (ktvSetting('hoverPreview') === false) return false;
+  // Respecte la limite « 1 connexion » : pas d'aperçu si une connexion fournisseur
+  // est déjà prise (enregistrement / relais en cours).
+  if (window.state && (state.recId || state.relaying)) return false;
+  return !!(window.mpegts && mpegts.isSupported());
+}
+
+function ktvStopPreview() {
+  clearTimeout(ktvPrevTimer); ktvPrevTimer = null;
+  if (ktvPrevPlayer) { try { ktvPrevPlayer.destroy(); } catch {} ktvPrevPlayer = null; }
+  const ov = document.getElementById('chanPreview');
+  if (ov) {
+    ov.classList.remove('show', 'loading');
+    const v = ov.querySelector('video');
+    if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch {} }
+  }
+  ktvPrevCard = null;
+}
+
+function ktvPositionPreview(ov, card) {
+  const r = card.getBoundingClientRect();
+  const W = ov.offsetWidth || 360, H = ov.offsetHeight || 230, M = 10;
+  let left = r.right + 12;
+  if (left + W > window.innerWidth - M) left = r.left - W - 12;   // bascule à gauche
+  left = Math.min(Math.max(M, left), window.innerWidth - W - M);
+  let top = r.top + r.height / 2 - H / 2;
+  top = Math.min(Math.max(M, top), window.innerHeight - H - M);
+  ov.style.left = left + 'px';
+  ov.style.top = top + 'px';
+}
+
+function ktvStartPreview(card) {
+  if (!ktvPreviewEnabled()) return;
+  const ch = card && card._ch;
+  const ov = document.getElementById('chanPreview');
+  if (!ch || !ov) return;
+  if (ktvPrevPlayer) { try { ktvPrevPlayer.destroy(); } catch {} ktvPrevPlayer = null; }
+  const v = ov.querySelector('video');
+  ov.querySelector('.cp-title').textContent = ch.name || '';
+  ov.classList.add('show', 'loading');
+  ktvPositionPreview(ov, card);
+  const tsUrl = (typeof liveTs === 'function') ? liveTs(ch)
+    : (typeof streamUrl === 'function' ? streamUrl(ch.stream_id, 'ts') : null);
+  if (!tsUrl || ch._url) {                                   // sources M3U directes : pas d'aperçu TS
+    if (ch._url) { try { v.src = ch._url; v.muted = true; v.play().catch(() => {}); ov.classList.remove('loading'); } catch {} }
+    return;
+  }
+  try {
+    const p = mpegts.createPlayer(
+      { type: 'mpegts', isLive: true, url: tsUrl },
+      { enableWorker: true, liveBufferLatencyChasing: true, liveSync: true, lazyLoad: false,
+        autoCleanupSourceBuffer: true, enableStashBuffer: false }
+    );
+    p.attachMediaElement(v);
+    v.muted = true;
+    p.load();
+    p.play().catch(() => {});
+    p.on(mpegts.Events.MEDIA_INFO, () => ov.classList.remove('loading'));
+    p.on(mpegts.Events.ERROR, () => ktvStopPreview());
+    ktvPrevPlayer = p;
+  } catch { ktvStopPreview(); }
+}
+
+// Délégation des événements de survol sur la liste + le rail Favoris.
+function ktvWireHoverPreview() {
+  const zones = [document.getElementById('liveGrid'), document.getElementById('liveFavRail')].filter(Boolean);
+  zones.forEach((z) => {
+    if (z._cpWired) return;
+    z._cpWired = true;
+    z.addEventListener('mouseover', (e) => {
+      const card = e.target.closest('.chan-card');
+      if (!card || card === ktvPrevCard) return;
+      clearTimeout(ktvPrevTimer);
+      ktvPrevCard = card;
+      ktvPrevTimer = setTimeout(() => ktvStartPreview(card), 550);   // anti-rebond
+    });
+    z.addEventListener('mouseout', (e) => {
+      const card = e.target.closest('.chan-card');
+      if (!card) return;
+      if (e.relatedTarget && card.contains(e.relatedTarget)) return; // déplacement interne
+      if (card === ktvPrevCard) ktvStopPreview();
+    });
+    // Clic pour lire : on libère immédiatement la connexion de l'aperçu.
+    z.addEventListener('mousedown', () => ktvStopPreview());
+  });
+  if (!window._cpScrollWired) {
+    window._cpScrollWired = true;
+    window.addEventListener('scroll', () => ktvStopPreview(), true);
+  }
+}

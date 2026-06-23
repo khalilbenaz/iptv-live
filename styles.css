@@ -738,3 +738,30 @@ input[type="datetime-local"], #schDur {
 .cs-catbar select { width: 100%; max-width: 100%; box-sizing: border-box; background: var(--panel2); color: var(--txt);
   border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12px; cursor: pointer; }
 .cs-empty { padding: 16px 12px; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* ---------- Live TV : rail Favoris (au-dessus de la liste, séparé) ---------- */
+.live-favrail { margin: 0 0 22px; }
+.live-favrail .favrail-h { display: flex; align-items: center; gap: 8px; font-size: 14px;
+  font-weight: 800; letter-spacing: .03em; color: var(--accent); margin: 0 0 12px; }
+.live-favrail .favrail-h .favrail-count { color: var(--muted); font-weight: 600; font-size: 12px; }
+.live-favrail .favrail-track { display: flex; align-items: flex-start; gap: 14px;
+  overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+.live-favrail .favrail-track::-webkit-scrollbar { display: none; }
+.live-favrail .favrail-track .chan-card { flex: 0 0 250px; width: 250px; }
+
+/* ---------- Aperçu d'une chaîne au survol ---------- */
+.chan-preview { position: fixed; z-index: 60; width: 360px; display: none; overflow: hidden;
+  background: #000; border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 20px 56px rgba(0,0,0,.6); opacity: 0; transform: scale(.96);
+  transition: opacity .15s ease, transform .15s ease; pointer-events: none; }
+.chan-preview.show { display: block; opacity: 1; transform: scale(1); }
+.chan-preview video { display: block; width: 100%; height: 202px; object-fit: cover;
+  background: #000; }
+.chan-preview .cp-title { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 12px 9px;
+  font-size: 13px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; background: linear-gradient(to top, rgba(0,0,0,.9), transparent); }
+.chan-preview .cp-spin { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%;
+  animation: cpspin .8s linear infinite; opacity: 0; }
+.chan-preview.loading .cp-spin { opacity: 1; }
+@keyframes cpspin { to { transform: rotate(360deg); } }

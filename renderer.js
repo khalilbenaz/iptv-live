@@ -234,7 +234,9 @@ function updateAcctChip() {
 async function loadCategories() {
   const cats = await xtreamApi('action=get_live_categories');
   state.categories = (Array.isArray(cats) ? cats : []).filter((c) => categoryAllowed(c.category_name));
-  fillCatSelect($('catSelect'), true);
+  // Les favoris ne sont plus en tête du sélecteur : ils ont leur propre rail
+  // dédié au-dessus de la liste (voir #liveFavRail / ktvRenderLiveFavs).
+  fillCatSelect($('catSelect'), false);
   fillCatSelect($('guideCat'), false);
 }
 
@@ -257,6 +259,7 @@ function fillCatSelect(sel, withFav) {
 function showView(name) {
   const leaving = state.view;
   state.view = name;
+  if (typeof ktvStopPreview === 'function') ktvStopPreview();   // coupe l'aperçu au survol
   // Quitter le lecteur coupe la lecture (sinon le son continue en arrière-plan)
   if (leaving === 'player' && name !== 'player') {
     destroyPlayer();
@@ -330,6 +333,8 @@ function renderLiveGrid() {
   for (const c of items.slice(0, 1500)) frag.appendChild(channelCard(c, true));
   grid.appendChild(frag);
   observeEpgCards();
+  if (typeof ktvRenderLiveFavs === 'function') ktvRenderLiveFavs();
+  if (typeof ktvWireHoverPreview === 'function') ktvWireHoverPreview();
 }
 
 // Carte chaîne (live grid + accueil). epgLazy = charger EPG quand visible.
@@ -337,6 +342,7 @@ function channelCard(c, epgLazy) {
   const card = document.createElement('div');
   card.className = 'chan-card';
   card.dataset.id = c.stream_id;
+  card._ch = c;                       // réf. chaîne pour l'aperçu au survol
   if (state.current && state.current.stream_id == c.stream_id) card.classList.add('active');
 
   const head = document.createElement('div');
@@ -376,6 +382,7 @@ function channelCard(c, epgLazy) {
     const opt = $('catSelect').querySelector('option[value="favs"]');
     if (opt) opt.textContent = `★ Favoris (${state.favs.length})`;
     if (state.view === 'live' && $('catSelect').value === 'favs') loadChannels('favs');
+    if (typeof ktvRenderLiveFavs === 'function') ktvRenderLiveFavs();
   };
   head.appendChild(star);
   card.appendChild(head);
@@ -964,7 +971,7 @@ function renderHomeDynamic(dyn) {
   const heroItem = state.recent[0] || (state.favs[0] && { type: 'live', id: state.favs[0].stream_id, name: state.favs[0].name, icon: state.favs[0].stream_icon });
   if (heroItem) dyn.appendChild(buildHero(heroItem));
   if (state.recent.length) dyn.appendChild(makeRow('Reprendre la lecture', state.recent.map(recentCard)));
-  if (state.favs.length) dyn.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => { $('catSelect').value = 'favs'; showView('live'); }));
+  if (state.favs.length) dyn.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => showView('live')));
 }
 
 function buildHome() {

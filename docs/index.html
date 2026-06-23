@@ -114,6 +114,11 @@
   .apiList b{color:var(--ink)}
   code{font-family:var(--mono);background:#16181d;color:var(--accentq);padding:2px 6px;font-size:.88em}
 
+  .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+  .shots figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#000}
+  .shots img{display:block;width:100%;height:auto}
+  .shots figcaption{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-top:1px solid var(--line)}
+
   footer{border-top:1px solid var(--line);padding:46px 0;color:var(--muted);font-family:var(--mono);font-size:12.5px;letter-spacing:.04em}
   footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   footer a{color:var(--accent)}
@@ -143,7 +148,7 @@
   <section class="hero" id="top">
     <div class="wrap">
       <div>
-        <div class="kick">// Lecteur Xtream — macOS · Windows — v1.9.2</div>
+        <div class="kick">// Lecteur Xtream — macOS · Windows — v1.10</div>
         <h1>Regardez<br>tout,<br><em>partout.</em></h1>
         <p class="sell">Live TV, films &amp; séries, guide EPG et catch-up. Une seule app, taillée pour les abonnements Xtream.</p>
         <div class="cta">
@@ -163,9 +168,36 @@
     </div>
   </section>
 
+  <section class="sec" id="shots" hidden>
+    <div class="wrap">
+      <div class="kick">// Aperçu</div>
+      <h2>L'app en images</h2>
+      <p class="intro">Accueil cinématographique, catalogues façon streaming et guide TV enrichi.</p>
+      <div class="shots">
+        <figure><img src="screenshots/01-accueil.png" alt="Accueil KTV — hero et reprise de lecture" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Accueil</figcaption></figure>
+        <figure><img src="screenshots/02-films.png" alt="Films — hero, tendances et dernières sorties" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Films</figcaption></figure>
+        <figure><img src="screenshots/03-guide.png" alt="Guide TV — EPG enrichi avec catch-up" loading="lazy" onerror="this.closest('figure').remove()"><figcaption>Guide TV</figcaption></figure>
+      </div>
+    </div>
+  </section>
+  <script>
+    // Affiche la section « Aperçu » seulement quand au moins une capture est disponible.
+    (function () {
+      var sec = document.getElementById('shots');
+      var imgs = sec ? sec.querySelectorAll('.shots img') : [];
+      var pending = imgs.length;
+      function done() { if (sec && sec.querySelector('.shots img')) sec.hidden = false; }
+      imgs.forEach(function (im) {
+        if (im.complete && im.naturalWidth > 0) { sec.hidden = false; }
+        im.addEventListener('load', function () { sec.hidden = false; });
+        im.addEventListener('error', function () { if (--pending === 0) done(); });
+      });
+    })();
+  </script>
+
   <section class="sec" id="features">
     <div class="wrap">
-      <div class="kick">// Interface v1.9.2</div>
+      <div class="kick">// Interface v1.10</div>
       <h2>Une expérience<br>type plateforme</h2>
       <p class="intro">Accueil et catalogues repensés : grands visuels, reprise intelligente et navigation fluide.</p>
       <div class="rows">
