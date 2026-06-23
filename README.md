@@ -20,6 +20,12 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.14.2
+- **Détail film** : l'affiche reste celle du fournisseur (cohérente avec la liste) au lieu d'une affiche TMDB parfois issue d'un mauvais match.
+
+### ✨ Nouveautés v1.14.1
+- **Correctif** : un film/série n'affiche plus l'EPG d'une chaîne live précédente.
+
 ### ✨ Nouveautés v1.14.0
 - **Lecture des formats non supportés (MKV, AVI, WMV…)** : conversion **à la volée** via un relais ffmpeg dédié (remux/transcode → HLS local) — déclenchée automatiquement pour les conteneurs que le lecteur intégré ne sait pas ouvrir, et en secours si la lecture échoue. Aucune dépendance externe ; identique macOS/Windows.
 
