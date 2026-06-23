@@ -83,6 +83,7 @@ function setWatched(key, on) {
   saveWatched();
 }
 function toggleWatched(key) { setWatched(key, !isWatched(key)); }
+function isSeasonWatched(eps) { return !!(eps && eps.length && eps.every((ep) => isWatched('series:' + ep.id))); }
 function toggleFav(ch) {
   if (isFav(ch.stream_id)) state.favs = state.favs.filter((f) => f.stream_id != ch.stream_id);
   else state.favs.push({ stream_id: ch.stream_id, name: ch.name, stream_icon: ch.stream_icon || '', category_id: ch.category_id });
@@ -805,7 +806,7 @@ async function openSeries(s) {
     if (typeof ktvEnrichSeriesModal === 'function') ktvEnrichSeriesModal(curSeries, info);
     const seasons = Object.keys(curSeries.episodes).sort((a, b) => Number(a) - Number(b));
     if (!seasons.length) { $('episodeList').innerHTML = '<li class="rec-empty">Aucun épisode.</li>'; return; }
-    $('seasonSelect').innerHTML = seasons.map((n) => `<option value="${escapeHtml(n)}">Saison ${escapeHtml(n)}</option>`).join('');
+    $('seasonSelect').innerHTML = seasons.map((n) => `<option value="${escapeHtml(n)}">Saison ${escapeHtml(n)}${isSeasonWatched(curSeries.episodes[n]) ? ' ✓' : ''}</option>`).join('');
     renderEpisodes(seasons[0]);
   } catch (e) {
     $('seriesPlot').textContent = 'Impossible de charger les épisodes : ' + e.message;
@@ -1106,29 +1107,45 @@ function renderHomeDynamic(dyn) {
 // Vue Historique : tout le « vu récemment » (jusqu'à 100), reprise rapide,
 // chargement progressif (infinite loading) par lots.
 let historyObs = null;
+function fmtWatchDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const hm = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  if (sameDay(d, now)) return "Aujourd'hui · " + hm;
+  if (sameDay(d, yest)) return 'Hier · ' + hm;
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' · ' + hm;
+}
 function buildHistory() {
   const grid = $('historyGrid');
   if (!grid) return;
   if (historyObs) { historyObs.disconnect(); historyObs = null; }
   grid.innerHTML = '';
   if (!state.recent.length) { grid.innerHTML = '<p class="muted">Aucun historique pour le moment.</p>'; return; }
+  // Trié par date de visionnage (plus récent d'abord).
+  const items = state.recent.slice().sort((a, b) => (b.at || 0) - (a.at || 0));
   const BATCH = 24;
   let shown = 0;
   const sentinel = document.createElement('div');
   sentinel.style.cssText = 'grid-column:1/-1;height:1px;';
   const renderMore = () => {
     const frag = document.createDocumentFragment();
-    state.recent.slice(shown, shown + BATCH).forEach((r) => frag.appendChild(recentCard(r)));
+    items.slice(shown, shown + BATCH).forEach((r) => {
+      const card = recentCard(r);
+      if (r.at) { const dt = document.createElement('div'); dt.className = 'rc-date'; dt.textContent = '🕘 ' + fmtWatchDate(r.at); card.appendChild(dt); }
+      frag.appendChild(card);
+    });
     grid.insertBefore(frag, sentinel);
     shown += BATCH;
-    if (shown >= state.recent.length && historyObs) historyObs.disconnect();
+    if (shown >= items.length && historyObs) historyObs.disconnect();
     if (typeof ktvWireHoverPreview === 'function') ktvWireHoverPreview();   // aperçu au survol
   };
   grid.appendChild(sentinel);
   renderMore();
   if ('IntersectionObserver' in window) {
     historyObs = new IntersectionObserver((es) => {
-      if (es[0].isIntersecting && shown < state.recent.length) renderMore();
+      if (es[0].isIntersecting && shown < items.length) renderMore();
     }, { rootMargin: '300px' });
     historyObs.observe(sentinel);
   }
@@ -1180,6 +1197,7 @@ async function fillCategoryRows(cats, rows) {
         if (items.length) setRowCards(row, items.map((m) => posterCard({
           title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
           progress: resumeProgress('movie:' + m.stream_id), remaining: resumeRemaining('movie:' + m.stream_id),
+          watchedKey: 'movie:' + m.stream_id,
           onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)),
           tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
           onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); }
@@ -1209,7 +1227,7 @@ async function fillHomeContent(moviesRow, seriesRow) {
   try {
     await loadVodData();
     const recent = [...(state.vod || [])].sort((a, b) => (Number(b.added) || 0) - (Number(a.added) || 0)).slice(0, 18);
-    if (recent.length) setRowCards(moviesRow, recent.map((m) => posterCard({ title: m.name, cover: m.stream_icon || m.cover, rating: m.rating, progress: resumeProgress('movie:' + m.stream_id), remaining: resumeRemaining('movie:' + m.stream_id), onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)), tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') } })));
+    if (recent.length) setRowCards(moviesRow, recent.map((m) => posterCard({ title: m.name, cover: m.stream_icon || m.cover, rating: m.rating, progress: resumeProgress('movie:' + m.stream_id), remaining: resumeRemaining('movie:' + m.stream_id), watchedKey: 'movie:' + m.stream_id, onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)), tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') } })));
     else moviesRow.remove();
   } catch { moviesRow.remove(); }
   try {
@@ -2853,7 +2871,16 @@ window.addEventListener('DOMContentLoaded', () => {
     clearResume(state.resumeKey);
     if (!state.scrobbled && typeof ktvTraktOnFinished === 'function') { state.scrobbled = true; ktvTraktOnFinished(state.nowMeta); }
     const q = state.playQueue;
-    if (q && q.idx + 1 < q.eps.length) playEpisodeAt({ ...q, idx: q.idx + 1 });
+    if (q && q.idx + 1 < q.eps.length) {
+      playEpisodeAt({ ...q, idx: q.idx + 1 });                 // épisode suivant (même saison)
+    } else if (q && curSeries && curSeries.episodes) {
+      // Fin de saison → enchaîne sur la 1re de la saison suivante (si dispo).
+      const seasons = Object.keys(curSeries.episodes).sort((a, b) => Number(a) - Number(b));
+      const i = seasons.indexOf(String(q.season));
+      const ns = i >= 0 ? seasons[i + 1] : null;
+      const neps = ns && curSeries.episodes[ns];
+      if (neps && neps.length) playEpisodeAt({ eps: neps, idx: 0, season: ns, name: q.name, cover: q.cover });
+    }
   });
 
   // Reprise de lecture : applique la position sauvegardée (VOD / séries).

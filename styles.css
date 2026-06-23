@@ -799,3 +799,6 @@ input[type="datetime-local"], #schDur {
 .p-watch.on { opacity: 1; background: rgba(77,208,128,.92); color: #06210f; }
 .poster.is-watched .p-img { outline: 2px solid rgba(77,208,128,.85); outline-offset: -2px; }
 .ep-watched { color: #4dd080; font-weight: 700; margin-left: 6px; }
+
+/* Date de visionnage dans l'historique */
+.rc-date { font-size: 11px; color: var(--muted); margin-top: 2px; }

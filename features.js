@@ -373,6 +373,7 @@ async function ktvRunSearch(q) {
     title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
     progress: (typeof resumeProgress === 'function' ? resumeProgress('movie:' + m.stream_id) : 0),
     remaining: (typeof resumeRemaining === 'function' ? resumeRemaining('movie:' + m.stream_id) : 0),
+    watchedKey: 'movie:' + m.stream_id,
     onClick: () => ktvOpenMovie(m), tmdb: { type: 'movie', title: m.name, year: yearOf(m.name) },
     onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); },
   }))));
