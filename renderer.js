@@ -489,7 +489,7 @@ function buildVodHero(m, kind) {
   btns.appendChild(playBtn);
   info.append(tag, h1, meta, plot, btns);
   hero.append(art, grad, info);
-  const tmdbOn = (typeof ktvSetting === 'function') && ktvSetting('tmdbEnabled') && ktvSetting('tmdbKey');
+  const tmdbOn = (typeof ktvSetting === 'function') && ktvSetting('tmdbEnabled');
   if (tmdbOn && typeof ktvTmdbSearch === 'function') {
     (async () => {
       try {
@@ -1163,7 +1163,18 @@ function buildHero(item) {
   const remain = key ? resumeRemaining(key) : 0;
 
   const art = document.createElement('div'); art.className = 'hero-art';
-  if (item.icon) art.style.backgroundImage = `url(${item.icon})`;
+  if (live) {
+    // Pas de backdrop pour les chaînes → dégradé de marque + logo centré (au lieu
+    // d'un logo étiré en fond, qui rendait le hero tout noir).
+    art.classList.add('hero-art--live');
+    if (item.icon) {
+      const logo = document.createElement('img'); logo.className = 'hero-logo';
+      logo.src = item.icon; logo.onerror = () => logo.remove();
+      art.appendChild(logo);
+    }
+  } else if (item.icon) {
+    art.style.backgroundImage = `url(${item.icon})`;
+  }
   const grad = document.createElement('div'); grad.className = 'hero-grad';
   const info = document.createElement('div'); info.className = 'hero-info';
 
@@ -1192,6 +1203,16 @@ function buildHero(item) {
   const plot = document.createElement('p'); plot.className = 'hero-plot';
   info.appendChild(plot);
 
+  // Chaîne live : affiche le programme EPG en cours (et le suivant) dans le hero.
+  if (live) {
+    getChannelEpg({ stream_id: item.id, name: item.name }).then((e) => {
+      if (!e) return;
+      let t = e.cur ? '▶ ' + e.cur.title : '';
+      if (e.next) t += (t ? '   ·   ⏭ ' : '⏭ ') + e.next.title;
+      if (t) plot.textContent = t;
+    }).catch(() => {});
+  }
+
   const btns = document.createElement('div'); btns.className = 'hero-btns';
   const playBtn = document.createElement('button'); playBtn.className = 'btn play';
   playBtn.textContent = (!live && prog > 0) ? '▶ Reprendre' : '▶ Regarder';
@@ -1205,7 +1226,7 @@ function buildHero(item) {
   hero.append(art, grad, info);
 
   // Enrichissement TMDB (backdrop plein cadre + synopsis + bande-annonce)
-  const tmdbOn = (typeof ktvSetting === 'function') && ktvSetting('tmdbEnabled') && ktvSetting('tmdbKey');
+  const tmdbOn = (typeof ktvSetting === 'function') && ktvSetting('tmdbEnabled');
   if (!live && tmdbOn && typeof ktvTmdbSearch === 'function') {
     (async () => {
       try {

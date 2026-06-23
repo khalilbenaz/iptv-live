@@ -767,3 +767,8 @@ input[type="datetime-local"], #schDur {
 @keyframes cpspin { to { transform: rotate(360deg); } }
 
 #btnFav.on { color: #ffcf3f; }
+
+/* Hero accueil pour une chaîne live : dégradé de marque + logo centré */
+.hero-art--live { background: radial-gradient(120% 130% at 78% 28%, #20283c 0%, #141722 55%, #0e0f15 100%); }
+.hero-logo { position: absolute; top: 46%; right: 7%; transform: translateY(-50%); max-width: 36%; max-height: 52%; object-fit: contain; filter: drop-shadow(0 10px 34px rgba(0,0,0,.55)); opacity: .97; pointer-events: none; }
+@media (max-width: 680px) { .hero-logo { opacity: .22; right: 50%; transform: translate(50%, -50%); } }
