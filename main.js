@@ -507,6 +507,7 @@ app.on('before-quit', () => {
   for (const { timer } of schedules.values()) try { clearTimeout(timer); } catch {}
   schedules.clear();
   stopRelay();
+  stopVodRemux();
   stopTunnel();
   killStrayFfmpeg();
 });
@@ -1161,6 +1162,59 @@ function waitForFile(file, timeoutMs) {
     tick();
   });
 }
+
+/* ---------- Relais VOD : remux/transcode des conteneurs non lisibles (mkv/avi…) ----------
+   ISOLÉ du relais live (objet/port/serveur dédiés) pour éviter toute régression.
+   Sert un HLS local que le <video> Chromium peut lire. */
+const vodRelay = { proc: null, server: null, dir: null, port: RELAY_PORT + 1 };
+function killVodFfmpeg() { try { vodRelay.proc && vodRelay.proc.kill('SIGKILL'); } catch {} vodRelay.proc = null; }
+function stopVodRemux() { killVodFfmpeg(); try { vodRelay.server && vodRelay.server.close(); } catch {} vodRelay.server = null; }
+function vodRemuxArgs(url, transcode) {
+  const enc = transcode
+    ? [...decodeAccelArgs(), '-i', url, ...transcodeVideoArgs(), '-c:a', 'aac', '-b:a', '160k', '-ac', '2']
+    : ['-i', url, '-c', 'copy', '-bsf:a', 'aac_adtstoasc'];
+  return ['-hide_banner', '-loglevel', 'error', ...enc,
+    '-f', 'hls', '-hls_time', '4', '-hls_playlist_type', 'event', '-hls_flags', 'independent_segments+temp_file',
+    '-hls_segment_filename', path.join(vodRelay.dir, 's%d.ts'), path.join(vodRelay.dir, 'index.m3u8')];
+}
+async function startVodRemux(url, transcode) {
+  killVodFfmpeg();
+  const dir = path.join(os.tmpdir(), 'ktv-vod');
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  fs.mkdirSync(dir, { recursive: true });
+  vodRelay.dir = dir;
+  let errBuf = '';
+  vodRelay.proc = spawn(ffmpegPath, vodRemuxArgs(url, transcode));
+  vodRelay.proc.on('error', () => {});
+  vodRelay.proc.stderr.on('data', (d) => { errBuf += d.toString(); });
+  if (!vodRelay.server) {
+    vodRelay.server = http.createServer((req, res) => {
+      const reqPath = (req.url || '').split('?')[0];
+      const file = path.join(vodRelay.dir, path.basename(reqPath) || 'index.m3u8');
+      fs.readFile(file, (err, data) => {
+        if (err) { res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' });
+        res.end(data);
+      });
+    });
+    await new Promise((resolve, reject) => {
+      const onErr = (e) => reject(e);
+      vodRelay.server.once('error', onErr);
+      vodRelay.server.listen(vodRelay.port, '127.0.0.1', () => { vodRelay.server.removeListener('error', onErr); resolve(); });
+    });
+  }
+  const ok = await waitForFile(path.join(dir, 'index.m3u8'), 20000);
+  if (!ok) { killVodFfmpeg(); throw new Error(redact(errBuf.slice(-200)) || 'ffmpeg'); }
+  return `http://127.0.0.1:${vodRelay.port}/index.m3u8`;
+}
+ipcMain.handle('vod-remux', async (e, { url } = {}) => {
+  if (!isHttpUrl(url)) return { error: 'URL invalide' };
+  if (recordings.size > 0) return { error: "Un enregistrement utilise la connexion. Arrête-le d'abord." };
+  try { return { local: await startVodRemux(url, false) }; }            // remux (copie de flux)
+  catch { try { return { local: await startVodRemux(url, true), transcoded: true }; } // sinon transcode
+  catch (e2) { return { error: e2.message }; } }
+});
+ipcMain.handle('vod-remux-stop', () => { killVodFfmpeg(); return { ok: true }; });
 
 // (Ré)met le serveur relais en écoute sur `host`. Si le serveur écoute déjà
 // (réutilisation loopback → élargissement LAN), on ferme puis on ré-écoute.

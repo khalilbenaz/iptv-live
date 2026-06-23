@@ -322,6 +322,7 @@ function showView(name) {
   // Quitter le lecteur coupe la lecture (sinon le son continue en arrière-plan)
   if (leaving === 'player' && name !== 'player') {
     destroyPlayer();
+    try { window.api.vodRemuxStop(); } catch {}                 // arrête le remux VOD éventuel
     // libère le relais 4K (si pas d'enregistrement/restream en cours)
     if (!state.relaying && !state.recId) { try { window.api.relayStopIdle(); } catch {} }
     state.current = null;
@@ -1451,7 +1452,37 @@ function destroyPlayer() {
 }
 
 // Lecture VOD / épisode (fichier direct)
+// Conteneurs que Chromium ne sait pas ouvrir → passage par le relais VOD (remux/transcode).
+function isRemuxContainer(url) {
+  return /\.(mkv|avi|wmv|flv|m2ts|mts|vob|ogm|divx|mpg|mpeg|3gp|rmvb)(\?|$)/i.test(String(url || ''));
+}
+// Lecture d'un fichier non lisible nativement : ffmpeg le convertit en HLS local (relais VOD).
+async function startRemuxPlayback(url, title, crumb, resumeKey) {
+  if (state.relaying) stopRelay();
+  enterPlayer(crumb || title, false);
+  $('chanSidebar').classList.add('hidden'); $('sidebarToggle').classList.add('hidden');
+  $('nowTitle').textContent = title || '—';
+  $('recBtn').disabled = true; $('relayBtn').disabled = true; $('scheduleBtn').disabled = true;
+  destroyPlayer();
+  $('overlay').classList.remove('hidden');
+  $('overlay').textContent = '⚙️ Préparation de la lecture (conversion du format)…';
+  try {
+    const r = await window.api.vodRemux(url, title);
+    if (state.view !== 'player') { try { window.api.vodRemuxStop(); } catch {} return; }   // l'utilisateur a quitté
+    if (!r || !r.local) throw new Error((r && r.error) || 'échec');
+    $('overlay').classList.add('hidden');
+    playMedia(r.local, title, false, crumb, resumeKey);
+  } catch (e) {
+    $('overlay').classList.remove('hidden');
+    $('overlay').textContent = 'Lecture impossible (format non supporté). Essaie d’ouvrir le fichier dans VLC. ' + (e && e.message ? '(' + e.message + ')' : '');
+  }
+}
+
 function playMedia(url, title, isLive, crumb, resumeKey) {
+  // Conteneur non lisible par Chromium → conversion via le relais VOD (sauf flux local déjà converti).
+  if (!isLive && isRemuxContainer(url) && !String(url).startsWith('http://127.0.0.1:')) {
+    return startRemuxPlayback(url, title, crumb, resumeKey);
+  }
   state.current = null;
   state.playQueue = null;
   state.nowMeta = (typeof ktvMetaFromPlay === 'function') ? ktvMetaFromPlay(resumeKey, title) : null;
@@ -1466,10 +1497,19 @@ function playMedia(url, title, isLive, crumb, resumeKey) {
   $('overlay').classList.add('hidden');
   $('recBtn').disabled = true; $('relayBtn').disabled = true; $('scheduleBtn').disabled = true;
   if (state.relaying) stopRelay();
+  // Lecture d'un flux normal → on libère un remux VOD éventuellement resté actif.
+  if (!String(url).startsWith('http://127.0.0.1:')) { try { window.api.vodRemuxStop(); } catch {} }
   destroyPlayer();
   const v = $('video');
   suppressResume = false;
+  v._remuxTried = false;
   v.onerror = () => {
+    // Codec non décodé (ex. HEVC) sur un conteneur a priori lisible → on tente une conversion.
+    if (!isLive && !v._remuxTried && !String(url).startsWith('http://127.0.0.1:')) {
+      v._remuxTried = true;
+      startRemuxPlayback(url, title, crumb, resumeKey);
+      return;
+    }
     $('overlay').classList.remove('hidden');
     $('overlay').textContent = 'Lecture impossible : format non supporté par le lecteur (souvent .mkv/.avi). Ouvre le fichier dans VLC.';
   };
@@ -1536,6 +1576,7 @@ async function loadEpg(channel) {
 
 // Lecture LIVE
 async function play(channel) {
+  try { window.api.vodRemuxStop(); } catch {}              // libère un remux VOD éventuel
   // Garde "1 connexion" : si un enregistrement tourne, on ne peut pas ouvrir
   // un 2e flux fournisseur.
   if (state.recId) {

@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('api', {
   downloadsDir: () => ipcRenderer.invoke('downloads-dir'),
   epgLookup: (name, tvgId) => ipcRenderer.invoke('epg-lookup', { name, tvgId }),
   epgPrograms: (name, tvgId) => ipcRenderer.invoke('epg-programs', { name, tvgId }),
+  vodRemux: (url, name) => ipcRenderer.invoke('vod-remux', { url, name }),
+  vodRemuxStop: () => ipcRenderer.invoke('vod-remux-stop'),
   epgSearch: (q, limit) => ipcRenderer.invoke('epg-search', { q, limit }),
   setProviderEpg: (url) => ipcRenderer.invoke('set-provider-epg', { url }),
   xmltvStatus: () => ipcRenderer.invoke('xmltv-status'),

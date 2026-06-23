@@ -20,6 +20,9 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.14.0
+- **Lecture des formats non supportés (MKV, AVI, WMV…)** : conversion **à la volée** via un relais ffmpeg dédié (remux/transcode → HLS local) — déclenchée automatiquement pour les conteneurs que le lecteur intégré ne sait pas ouvrir, et en secours si la lecture échoue. Aucune dépendance externe ; identique macOS/Windows.
+
 ### ✨ Nouveautés v1.13.3
 - **Synchro « vu » bidirectionnelle avec Trakt** : les films/épisodes déjà vus sur **Trakt** sont marqués vus dans KTV (films par titre+année, épisodes par série+saison+épisode) ; et le marquage manuel/auto dans KTV se synchronise vers Trakt.
 
