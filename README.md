@@ -20,6 +20,15 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.15.3
+- **« Vu » synchronisé** sur toutes les affiches d'un même contenu (plus de désynchronisation entre rangées/écrans).
+
+### ✨ Nouveautés v1.15.2
+- **Films & Séries en défilement infini** : chargement continu au scroll (par lots de 60) au lieu de la pagination.
+
+### ✨ Nouveautés v1.15.1
+- **Trakt** : marquage série/épisode apparié par **ID TMDB** (plus de mauvaise série homonyme ajoutée).
+
 ### ✨ Nouveautés v1.15.0
 - **« Marquer comme vu » partout** : bouton **✓ Vu** dans les fiches **film** et **série** (série entière), **✓ par épisode** dans la liste, et sur les affiches de **séries** (écran Séries, recherche). Tout est **synchronisé avec Trakt** (film, série entière, épisode — ajout/retrait de l'historique).
 
