@@ -12,6 +12,11 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.11 — audit & durcissement
+- **Sécurité renforcée** : `sandbox` activé, navigation/ouverture de fenêtres verrouillées, permissions web refusées par défaut, validation des URL (http/https) sur les liens externes/playlists/téléchargements, identifiants Xtream masqués dans les messages d'erreur. Le **relais n'écoute en LAN que pour le restream** (loopback sinon).
+- **Electron 42** (depuis 33, EOL) : correctifs de sécurité Chromium à jour.
+- **Corrections** : plus d'enregistrement de la mauvaise chaîne quand un relais est actif ; l'aperçu au survol n'ouvre plus de 2ᵉ connexion pendant une lecture ; option « Favoris » qui ne réapparaît plus dans le sélecteur ; détection « en direct » de l'EPG sans heure de fin ; scrobble Trakt fiabilisé ; comparaison de chaîne par identifiant.
+
 ### ✨ Nouveautés v1.10
 - **Aperçu de chaîne au survol (Live TV)** : un mini-lecteur muet se lance automatiquement au survol d'une chaîne (anti-rebond, faible latence), pour zapper à l'œil sans ouvrir le lecteur. Désactivable dans *Réglages → Lecture & tampon*.
 - **Favoris hors de la liste** : les chaînes favorites ne sont plus en tête de la liste / du sélecteur de catégories — elles disposent désormais d'un **rail dédié** en haut de l'écran Live TV, séparé de la liste.

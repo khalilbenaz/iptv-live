@@ -30,10 +30,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install deps
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run ${{ matrix.script }}
@@ -44,7 +45,7 @@ jobs:
 
       - name: Zip (Windows)
         if: runner.os == 'Windows'
-        run: Compress-Archive -Path "${{ matrix.out }}\*" -DestinationPath "${{ matrix.asset }}" -Force
+        run: Compress-Archive -Path "${{ matrix.out }}" -DestinationPath "${{ matrix.asset }}" -Force
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')

@@ -1,7 +1,7 @@
 {
   "name": "iptv-live",
   "productName": "KTV",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "KTV — lecteur Xtream (live, films, séries, EPG, enregistrement)",
   "main": "main.js",
   "scripts": {
@@ -19,39 +19,9 @@
   },
   "devDependencies": {
     "@electron/packager": "^20.0.1",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron": "^42.4.1"
   },
   "overrides": {
     "webworkify-webpack": "2.1.5"
-  },
-  "build": {
-    "appId": "com.b3g.iptvlive",
-    "productName": "KTV",
-    "asarUnpack": [
-      "node_modules/ffmpeg-static/**"
-    ],
-    "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "renderer.js",
-      "features.js",
-      "styles.css",
-      "node_modules/hls.js/dist/hls.min.js",
-      "node_modules/mpegts.js/dist/mpegts.js"
-    ],
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.entertainment",
-      "icon": "build/icon.icns"
-    },
-    "win": {
-      "target": "portable",
-      "icon": "build/icon.ico"
-    },
-    "portable": {
-      "artifactName": "KTV-portable.exe"
-    }
   }
 }
