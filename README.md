@@ -20,6 +20,24 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.11.8
+- **Descriptions des programmes (Guide TV)** : quand le fournisseur ne fournit pas le synopsis, KTV le complète depuis le **XMLTV** (apparié par horaire/titre).
+
+### ✨ Nouveautés v1.11.7
+- **Titres de programmes sur 2 lignes** (grille Live TV + Guide TV) au lieu d'être tronqués.
+- **EPG de secours enrichi** : capture des descriptions `<desc>` du XMLTV.
+
+### ✨ Nouveautés v1.11.6
+- **Indicateur de chargement** du programme sur les cartes Live TV (plus de carte vide pendant la récupération de l'EPG).
+- **Hero accueil (chaîne live)** : titre + **description** du programme + programme suivant.
+
+### ✨ Nouveautés v1.11.5
+- **Hero accueil d'une chaîne live** : dégradé + logo + programme EPG (fini la zone noire).
+- **Backdrops & synopsis TMDB rétablis** (films & séries).
+
+### ✨ Nouveautés v1.11.4
+- **Aperçu au survol fluide** : même mise en mémoire tampon que le lecteur (fini les saccades).
+
 ### ✨ Nouveautés v1.11.3
 - **Correctif : rail Favoris vide en Live TV** (les favoris n'apparaissaient que sur l'accueil) — dû à un accès `window.state` invalide.
 - **Aperçu au survol avec le son**.
