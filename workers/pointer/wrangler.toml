@@ -1,0 +1,11 @@
+name = "restream-pointer"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "POINTER_KV"
+id = "a4551b15603742bd811325b5f3ec1533"
+
+# Secret à définir une fois :
+#   wrangler secret put AUTH_SECRET   (clé d'écriture partagée avec l'app KTV)

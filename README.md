@@ -12,6 +12,10 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.11.1
+- **Token TMDB retiré de l'app** : les métadonnées passent désormais par un **proxy** (Cloudflare Worker `ktv-tmdb`) qui garde le token côté serveur. Possibilité d'utiliser sa propre clé TMDB v4 dans les réglages (appel direct).
+- **Pointeur de restream durci** (Worker `restream-pointer`) : écriture authentifiée et **limitée aux tunnels `*.trycloudflare.com`** (un secret extrait ne peut plus rediriger vers un hôte arbitraire).
+
 ### ✨ Nouveautés v1.11 — audit & durcissement
 - **Sécurité renforcée** : `sandbox` activé, navigation/ouverture de fenêtres verrouillées, permissions web refusées par défaut, validation des URL (http/https) sur les liens externes/playlists/téléchargements, identifiants Xtream masqués dans les messages d'erreur. Le **relais n'écoute en LAN que pour le restream** (loopback sinon).
 - **Electron 42** (depuis 33, EOL) : correctifs de sécurité Chromium à jour.

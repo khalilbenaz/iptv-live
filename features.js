@@ -16,7 +16,11 @@
 const KTV_DEFAULTS = {
   bufferProfile: 'balanced',         // 'low' | 'balanced' | 'stable'
   tmdbEnabled: true,
-  tmdbKey: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzM2Y3OWM5ZmFkZDMzMTg5ZTBhOTNiYTRjMGQ5NWYzNyIsIm5iZiI6MTU5NzAwODA5NS44NSwic3ViIjoiNWYzMDY4ZGZmMWI1NzEwMDM2ZWJjMDVkIiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.IJxV6bTHiTfgMSdekTUYMnukbBZn0Hm3du8S8pVA3Ao',
+  // Par défaut, les appels TMDB passent par le proxy KTV (token côté serveur, non
+  // embarqué). Un utilisateur avancé peut renseigner sa propre clé v4 (tmdbKey) :
+  // les appels se font alors en direct vers api.themoviedb.org.
+  tmdbKey: '',
+  tmdbProxy: 'https://ktv-tmdb.khalilbenaz.workers.dev',
   tmdbLang: 'fr-FR',
   traktClientId: '',
   traktSecret: '',
@@ -406,10 +410,22 @@ async function ktvRunSearch(q) {
    ===================================================================== */
 const TMDB_IMG = 'https://image.tmdb.org/t/p/';
 async function ktvTmdb(pathQ) {
-  const key = ktvSetting('tmdbKey'); if (!key) throw new Error('no key');
   const lang = ktvSetting('tmdbLang') || 'fr-FR';
-  const url = 'https://api.themoviedb.org/3' + pathQ + (pathQ.includes('?') ? '&' : '?') + 'language=' + encodeURIComponent(lang);
-  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + key, accept: 'application/json' } });
+  const sep = pathQ.includes('?') ? '&' : '?';
+  const qs = sep + 'language=' + encodeURIComponent(lang);
+  const key = ktvSetting('tmdbKey');
+  let url, headers;
+  if (key) {
+    // Clé perso → appel direct TMDB.
+    url = 'https://api.themoviedb.org/3' + pathQ + qs;
+    headers = { Authorization: 'Bearer ' + key, accept: 'application/json' };
+  } else {
+    // Défaut → proxy KTV (token côté serveur).
+    const base = (ktvSetting('tmdbProxy') || 'https://ktv-tmdb.khalilbenaz.workers.dev').replace(/\/+$/, '');
+    url = base + '/3' + pathQ + qs;
+    headers = { accept: 'application/json' };
+  }
+  const r = await fetch(url, { headers });
   if (!r.ok) throw new Error('tmdb ' + r.status);
   return r.json();
 }
@@ -456,7 +472,7 @@ function ktvPickResult(results, query, year) {
   return bestScore >= 60 ? best : null;                       // sinon : pas d'enrichissement (mieux qu'une fausse affiche)
 }
 async function ktvTmdbSearch(type, title, year) {
-  if (!ktvSetting('tmdbEnabled') || !ktvSetting('tmdbKey')) return null;
+  if (!ktvSetting('tmdbEnabled')) return null;
   const ck = 's4|' + type + '|' + title + '|' + (year || '');   // s4 = invalide les mauvais matches mis en cache
   const c = ktvTmdbCacheGet(ck); if (c !== undefined) return c;
   const q = cleanTitle(title);
@@ -492,7 +508,7 @@ function ktvTmdbObserver() {
   return ktvTmdbObs;
 }
 function ktvPosterEnrich(card, hint) {
-  if (!ktvSetting('tmdbEnabled') || !ktvSetting('tmdbKey') || !hint || !hint.title) return;
+  if (!ktvSetting('tmdbEnabled') || !hint || !hint.title) return;
   card._tmdbHint = hint;
   const obs = ktvTmdbObserver();
   if (obs) obs.observe(card); else ktvPosterFetch(card);
@@ -577,7 +593,7 @@ async function ktvOpenMovie(m) {
 }
 
 async function ktvEnrichSeriesModal(s, info) {
-  if (!ktvSetting('tmdbEnabled') || !ktvSetting('tmdbKey')) return;
+  if (!ktvSetting('tmdbEnabled')) return;
   try {
     const hit = await ktvTmdbSearch('tv', s.name);
     if (!hit) return;

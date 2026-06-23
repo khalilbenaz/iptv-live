@@ -1,0 +1,7 @@
+name = "ktv-tmdb"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# Secret à définir une fois :
+#   wrangler secret put TMDB_TOKEN   (coller le bearer token TMDB v4)

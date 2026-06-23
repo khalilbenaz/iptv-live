@@ -4,3 +4,7 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Cloudflare Workers (état local wrangler)
+.wrangler/
+workers/**/.wrangler/
