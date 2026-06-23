@@ -734,6 +734,19 @@ async function ktvTraktOnFinished(meta) {
     ktvToast('✓ Marqué vu sur Trakt');
   } catch {}
 }
+// Synchronise l'état « vu » avec Trakt (ajout/retrait de l'historique) — appelé
+// par la bascule manuelle ✓. `on` = vu (ajout) ; sinon retrait.
+async function ktvTraktSetWatched(meta, on) {
+  if (!meta || !ktvTraktConnected()) return;
+  try {
+    let body;
+    if (meta.type === 'movie') body = meta.tmdbId ? { movies: [{ ids: { tmdb: meta.tmdbId } }] } : { movies: [{ title: cleanTitle(meta.title), year: Number(meta.year) || undefined }] };
+    else if (meta.type === 'episode') body = { shows: [{ title: cleanTitle(meta.showTitle), seasons: [{ number: meta.season, episodes: [{ number: meta.episode }] }] }] };
+    else return;
+    await ktvTraktReq(on ? '/sync/history' : '/sync/history/remove', 'POST', body);
+    ktvToast(on ? '✓ Marqué vu sur Trakt' : '↩︎ Retiré de l’historique Trakt');
+  } catch {}
+}
 function ktvTraktWatchlist(meta) {
   if (!ktvTraktConnected()) { alert('Connecte Trakt dans les Réglages.'); return; }
   const body = meta.type === 'movie'

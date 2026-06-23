@@ -920,7 +920,15 @@ function posterCard({ title, cover, rating, onClick, onDownload, tmdb, progress,
     const setWb = (wb) => { const on = isWatched(watchedKey); wb.classList.toggle('on', on); wb.textContent = on ? '✓ Vu' : '✓'; wb.title = on ? 'Marquer comme non vu' : 'Marquer comme vu'; card.classList.toggle('is-watched', on); };
     const wb = document.createElement('button');
     wb.className = 'p-watch';
-    wb.onclick = (ev) => { ev.stopPropagation(); toggleWatched(watchedKey); setWb(wb); };
+    wb.onclick = (ev) => {
+      ev.stopPropagation();
+      const nowOn = !isWatched(watchedKey);
+      toggleWatched(watchedKey); setWb(wb);
+      // Synchro Trakt (films) sur la bascule manuelle.
+      if (tmdb && tmdb.type === 'movie' && typeof ktvTraktSetWatched === 'function') {
+        ktvTraktSetWatched({ type: 'movie', title: tmdb.title, year: tmdb.year }, nowOn);
+      }
+    };
     img.appendChild(wb); setWb(wb);
   }
   const t = document.createElement('div');
@@ -1133,7 +1141,9 @@ function buildHistory() {
     const frag = document.createDocumentFragment();
     items.slice(shown, shown + BATCH).forEach((r) => {
       const card = recentCard(r);
-      if (r.at) { const dt = document.createElement('div'); dt.className = 'rc-date'; dt.textContent = '🕘 ' + fmtWatchDate(r.at); card.appendChild(dt); }
+      const dt = document.createElement('div'); dt.className = 'rc-date';
+      dt.textContent = r.at ? ('🕘 ' + fmtWatchDate(r.at)) : '🕘 Vu récemment';
+      card.appendChild(dt);
       frag.appendChild(card);
     });
     grid.insertBefore(frag, sentinel);
