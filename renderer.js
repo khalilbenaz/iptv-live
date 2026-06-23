@@ -2395,6 +2395,19 @@ function removeDlItem(id) {
 /* ---------- Wire up ---------- */
 /* ---------- Reprise de lecture (VOD / séries) ---------- */
 // Cache mémoire : évite de parser localStorage à chaque vignette (rendu de 600 cartes).
+// Durée exploitable du média courant. Les VOD Xtream sont souvent servies en
+// flux (transfert chunked) → vid.duration vaut Infinity ; on retombe alors sur
+// la fin de la plage « seekable » que Chromium connaît une fois le moov lu.
+function effDuration(v) {
+  if (v && isFinite(v.duration) && v.duration > 0) return v.duration;
+  try {
+    if (v && v.seekable && v.seekable.length) {
+      const e = v.seekable.end(v.seekable.length - 1);
+      if (isFinite(e) && e > 0) return e;
+    }
+  } catch {}
+  return 0;
+}
 let _resumeCache = null;
 function loadResumeMap() {
   if (_resumeCache) return _resumeCache;
@@ -2624,9 +2637,10 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   // Sauvegarde périodique de la position de lecture.
   vid.addEventListener('timeupdate', () => {
-    if (!isFinite(vid.duration) || !vid.duration) return;
+    const dur = effDuration(vid);
+    if (!dur) return;
     // Marque « vu » sur Trakt à ~90 % (avant le générique, que personne ne regarde).
-    if (state.nowMeta && !state.scrobbled && vid.currentTime / vid.duration >= 0.9) {
+    if (state.nowMeta && !state.scrobbled && vid.currentTime / dur >= 0.9) {
       state.scrobbled = true;
       if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
     }
@@ -2634,7 +2648,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const now = Date.now();
     if (now - lastResumeSave < 5000) return;
     lastResumeSave = now;
-    saveResume(state.resumeKey, vid.currentTime, vid.duration);
+    saveResume(state.resumeKey, vid.currentTime, dur);
   });
   // Les pistes audio/sous-titres apparaissent après le démarrage du flux.
   ['playing', 'canplay'].forEach((ev) => vid.addEventListener(ev, refreshTrackButtons));
