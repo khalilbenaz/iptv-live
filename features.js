@@ -741,8 +741,10 @@ async function ktvTraktOnFinished(meta) {
   try {
     let body;
     if (meta.type === 'movie') body = meta.tmdbId ? { movies: [{ ids: { tmdb: meta.tmdbId } }] } : { movies: [{ title: cleanTitle(meta.title), year: Number(meta.year) || undefined }] };
-    else if (meta.type === 'episode') body = { shows: [{ title: cleanTitle(meta.showTitle), seasons: [{ number: meta.season, episodes: [{ number: meta.episode }] }] }] };
-    else return;
+    else if (meta.type === 'episode') {
+      const show = meta.tmdbId ? { ids: { tmdb: meta.tmdbId } } : { title: cleanTitle(meta.showTitle) };
+      body = { shows: [{ ...show, seasons: [{ number: meta.season, episodes: [{ number: meta.episode }] }] }] };
+    } else return;
     await ktvTraktReq('/sync/history', 'POST', body);
     ktvToast('✓ Marqué vu sur Trakt');
   } catch {}
@@ -754,9 +756,13 @@ async function ktvTraktSetWatched(meta, on) {
   try {
     let body;
     if (meta.type === 'movie') body = meta.tmdbId ? { movies: [{ ids: { tmdb: meta.tmdbId } }] } : { movies: [{ title: cleanTitle(meta.title), year: Number(meta.year) || undefined }] };
-    else if (meta.type === 'episode') body = { shows: [{ title: cleanTitle(meta.showTitle), seasons: [{ number: meta.season, episodes: [{ number: meta.episode }] }] }] };
-    else if (meta.type === 'show') body = { shows: [{ title: cleanTitle(meta.title), year: Number(meta.year) || undefined }] };  // série entière
-    else return;
+    else if (meta.type === 'episode') {
+      // ID TMDB du show si dispo (sinon titre) → évite d'apparier la mauvaise série.
+      const show = meta.tmdbId ? { ids: { tmdb: meta.tmdbId } } : { title: cleanTitle(meta.showTitle) };
+      body = { shows: [{ ...show, seasons: [{ number: meta.season, episodes: [{ number: meta.episode }] }] }] };
+    } else if (meta.type === 'show') {
+      body = { shows: [ meta.tmdbId ? { ids: { tmdb: meta.tmdbId } } : { title: cleanTitle(meta.title), year: Number(meta.year) || undefined } ] };
+    } else return;
     await ktvTraktReq(on ? '/sync/history' : '/sync/history/remove', 'POST', body);
     ktvToast(on ? '✓ Marqué vu sur Trakt' : '↩︎ Retiré de l’historique Trakt');
   } catch {}

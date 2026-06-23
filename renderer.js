@@ -809,7 +809,7 @@ async function openSeries(s) {
     swBtn.onclick = () => {
       const nowOn = !isWatched(swKey);
       toggleWatched(swKey); setSw();
-      if (typeof ktvTraktSetWatched === 'function') ktvTraktSetWatched({ type: 'show', title: s.name, year: (typeof yearOf === 'function' ? yearOf(s.name) : undefined) }, nowOn);
+      if (typeof ktvTraktSetWatched === 'function') ktvTraktSetWatched({ type: 'show', title: s.name, year: (typeof yearOf === 'function' ? yearOf(s.name) : undefined), tmdbId: curSeries && curSeries._tmdbId }, nowOn);
     };
   }
   $('seriesModal').classList.remove('hidden');
@@ -866,7 +866,7 @@ function renderEpisodes(season) {
       ev.stopPropagation();
       const on = !isWatched(ewKey);
       toggleWatched(ewKey); setEw();
-      if (typeof ktvTraktSetWatched === 'function') ktvTraktSetWatched({ type: 'episode', showTitle: curSeries.name, season: Number(season), episode: Number(ep.episode_num) }, on);
+      if (typeof ktvTraktSetWatched === 'function') ktvTraktSetWatched({ type: 'episode', showTitle: curSeries.name, season: Number(season), episode: Number(ep.episode_num), tmdbId: curSeries && curSeries._tmdbId }, on);
     };
     const play = document.createElement('span');
     play.className = 'ep-play'; play.textContent = '▶';
@@ -885,7 +885,7 @@ function playEpisodeAt(q) {
   pushRecent({ type: 'series', id: ep.id, name: label, icon: q.cover, ext, show: q.name, season: Number(q.season), episode: Number(ep.episode_num) });
   $('seriesModal').classList.add('hidden');
   playMedia(seriesUrl(ep.id, ext), label, false, '🎞️ Séries', 'series:' + ep.id);
-  state.nowMeta = { type: 'episode', showTitle: q.name, season: Number(q.season), episode: Number(ep.episode_num) };
+  state.nowMeta = { type: 'episode', showTitle: q.name, season: Number(q.season), episode: Number(ep.episode_num), tmdbId: curSeries && curSeries._tmdbId };
   state.playQueue = q; // après playMedia (qui réinitialise la file)
 }
 
@@ -953,10 +953,13 @@ function posterCard({ title, cover, rating, onClick, onDownload, tmdb, progress,
       ev.stopPropagation();
       const nowOn = !isWatched(watchedKey);
       toggleWatched(watchedKey); setWb(wb);
-      // Synchro Trakt sur la bascule manuelle (film ou série entière).
+      // Synchro Trakt (film ou série entière) — on résout d'abord l'ID TMDB exact
+      // (sinon Trakt peut apparier le mauvais titre, ex. une autre « Mentalist »).
       if (tmdb && typeof ktvTraktSetWatched === 'function') {
-        if (tmdb.type === 'movie') ktvTraktSetWatched({ type: 'movie', title: tmdb.title, year: tmdb.year }, nowOn);
-        else if (tmdb.type === 'tv') ktvTraktSetWatched({ type: 'show', title: tmdb.title }, nowOn);
+        const isTv = tmdb.type === 'tv';
+        const sync = (id) => ktvTraktSetWatched(isTv ? { type: 'show', title: tmdb.title, tmdbId: id } : { type: 'movie', title: tmdb.title, year: tmdb.year, tmdbId: id }, nowOn);
+        if (typeof ktvTmdbSearch === 'function') ktvTmdbSearch(isTv ? 'tv' : 'movie', tmdb.title, tmdb.year).then((h) => sync(h && h.id)).catch(() => sync(null));
+        else sync(null);
       }
     };
     img.appendChild(wb); setWb(wb);
