@@ -782,3 +782,11 @@ input[type="datetime-local"], #schDur {
 /* Vue Historique : pleine largeur + cartes en grille (au lieu du rail) */
 #view-history .view-panel { max-width: none; width: 100%; }
 #historyGrid .recent-card { flex: none; width: 100%; }
+
+/* Popover synopsis complet au survol d'un programme du Guide */
+.gp-tip { position: fixed; z-index: 70; display: none; max-width: 340px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: 0 16px 44px rgba(0,0,0,.5); pointer-events: none; }
+.gp-tip.show { display: block; }
+.gp-tip-t { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.gp-tip-h { font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.gp-tip-d { font-size: 12.5px; line-height: 1.45; color: var(--txt); }

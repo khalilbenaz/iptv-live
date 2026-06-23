@@ -305,6 +305,7 @@ function showView(name) {
   const leaving = state.view;
   state.view = name;
   if (typeof ktvStopPreview === 'function') ktvStopPreview();   // coupe l'aperçu au survol
+  if (typeof hideGpTip === 'function') hideGpTip();
   // Quitter le lecteur coupe la lecture (sinon le son continue en arrière-plan)
   if (leaving === 'player' && name !== 'player') {
     destroyPlayer();
@@ -1011,8 +1012,13 @@ async function fillGuideRow(c, row) {
       const pct = Math.round(((now - p.st) / (p.en - p.st)) * 100);
       block.innerHTML += `<div class="gp-bar"><i style="width:${pct}%"></i></div>`;
     }
-    block.title = (archive ? '⏪ Revoir (catch-up)\n\n' : '') + (p.desc || p.title);
+    block.title = (archive ? '⏪ Revoir (catch-up)' : '');
     block.onclick = archive ? (() => ktvPlayArchive(c, p)) : (() => play(c));
+    // Survol : affiche le synopsis complet (popover) — le bloc le tronque à 2 lignes.
+    if (p.desc) {
+      block.addEventListener('mouseenter', () => showGpTip(block, p, range));
+      block.addEventListener('mouseleave', hideGpTip);
+    }
     // Programme à venir : bouton « Me rappeler » 🔔
     if (p.st > now) {
       const rb = document.createElement('button');
@@ -1025,6 +1031,32 @@ async function fillGuideRow(c, row) {
     slot.appendChild(block);
   }
 }
+
+// Popover du synopsis complet au survol d'un programme du Guide.
+let gpTipEl = null;
+function showGpTip(block, p, range) {
+  if (!gpTipEl) {
+    gpTipEl = document.createElement('div');
+    gpTipEl.id = 'gpTip'; gpTipEl.className = 'gp-tip';
+    document.body.appendChild(gpTipEl);
+    window.addEventListener('scroll', hideGpTip, true);
+  }
+  gpTipEl.innerHTML = `<div class="gp-tip-t">${escapeHtml(p.title)}</div>` +
+    `<div class="gp-tip-h">${escapeHtml(range || '')}</div>` +
+    `<div class="gp-tip-d">${escapeHtml(p.desc)}</div>`;
+  gpTipEl.classList.add('show');
+  const r = block.getBoundingClientRect();
+  const W = 340, M = 10;
+  gpTipEl.style.width = W + 'px';
+  let left = Math.min(Math.max(M, r.left), window.innerWidth - W - M);
+  gpTipEl.style.left = left + 'px';
+  // au-dessus si la place manque en bas
+  const h = gpTipEl.offsetHeight || 140;
+  let top = r.bottom + 8;
+  if (top + h > window.innerHeight - M) top = Math.max(M, r.top - h - 8);
+  gpTipEl.style.top = top + 'px';
+}
+function hideGpTip() { if (gpTipEl) gpTipEl.classList.remove('show'); }
 
 /* ---------- ACCUEIL ---------- */
 // Catégories choisies pour l'accueil : [{kind:'live'|'movie'|'series', id, name}]
