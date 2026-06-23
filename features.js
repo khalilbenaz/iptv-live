@@ -678,7 +678,7 @@ function ktvTraktPoll(d) {
     try {
       const r = await fetch(TRAKT_API + '/oauth/device/token', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: d.device_code, client_id: cid, client_secret: secret }) });
-      if (r.status === 200) { const t = await r.json(); t.obtained_at = Date.now(); ktvTraktSaveTok(t); ktvHideTraktModal(); ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings(); return; }
+      if (r.status === 200) { const t = await r.json(); t.obtained_at = Date.now(); ktvTraktSaveTok(t); ktvHideTraktModal(); ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings(); ktvTraktPullWatched(); return; }
       if (r.status === 400) { setTimeout(tick, interval); return; }    // en attente
       if (r.status === 429) { setTimeout(tick, interval * 2); return; } // throttle
       if (r.status === 409) { ktvTraktModalMsg('Déjà validé.'); return; }
@@ -707,7 +707,7 @@ async function ktvTraktPinConnect() {
       body: JSON.stringify({ code: pin.trim(), client_id: cid, client_secret: secret, redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', grant_type: 'authorization_code' }) });
     if (!r.ok) { alert('Échec (' + r.status + '). Le PIN est peut-être expiré ou le Client Secret incorrect — régénère un PIN et réessaie.'); return; }
     const t = await r.json(); t.obtained_at = Date.now(); ktvTraktSaveTok(t);
-    ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings();
+    ktvToast('✓ Trakt connecté'); if (state.view === 'settings') buildSettings(); ktvTraktPullWatched();
   } catch (e) { alert('Erreur : ' + e.message); }
 }
 // Déduit les métadonnées Trakt depuis la clé de reprise + le titre affiché
@@ -746,6 +746,42 @@ async function ktvTraktSetWatched(meta, on) {
     await ktvTraktReq(on ? '/sync/history' : '/sync/history/remove', 'POST', body);
     ktvToast(on ? '✓ Marqué vu sur Trakt' : '↩︎ Retiré de l’historique Trakt');
   } catch {}
+}
+// ---- Trakt -> KTV : marque vus en local les contenus déjà vus sur Trakt ----
+let ktvTW = null;   // { movies:Set('titre|année'), eps:Set('série|S|E') }
+function ktvWKey(title, year) { return cleanTitle(title || '') + '|' + (Number(year) || ''); }
+async function ktvTraktPullWatched() {
+  if (!ktvTraktConnected()) return;
+  try {
+    const [movies, shows] = await Promise.all([
+      ktvTraktReq('/sync/watched/movies').catch(() => []),
+      ktvTraktReq('/sync/watched/shows').catch(() => []),
+    ]);
+    const tw = { movies: new Set(), eps: new Set() };
+    (movies || []).forEach((it) => { const m = it.movie || {}; if (m.title) tw.movies.add(ktvWKey(m.title, m.year)); });
+    (shows || []).forEach((it) => {
+      const st = cleanTitle((it.show || {}).title || '');
+      (it.seasons || []).forEach((se) => (se.episodes || []).forEach((ep) => tw.eps.add(st + '|' + se.number + '|' + ep.number)));
+    });
+    ktvTW = tw;
+    ktvTraktApplyWatched();
+  } catch {}
+}
+// Marque vus en local les films du catalogue qui figurent dans l'historique Trakt.
+function ktvTraktApplyWatched() {
+  if (!ktvTW || typeof setWatched !== 'function' || !window.state) return;
+  let changed = false;
+  if (Array.isArray(state.vod)) {
+    for (const m of state.vod) {
+      const key = 'movie:' + m.stream_id;
+      if (!isWatched(key) && ktvTW.movies.has(ktvWKey(m.name, (typeof yearOf === 'function' ? yearOf(m.name) : '')))) { setWatched(key, true); changed = true; }
+    }
+  }
+  if (changed && state.view === 'movies' && typeof renderMovies === 'function') renderMovies();
+}
+// Épisode vu sur Trakt ? (appariement série + saison + épisode)
+function ktvTraktEpWatched(show, season, episode) {
+  return !!(ktvTW && ktvTW.eps.has(cleanTitle(show || '') + '|' + Number(season) + '|' + Number(episode)));
 }
 function ktvTraktWatchlist(meta) {
   if (!ktvTraktConnected()) { alert('Connecte Trakt dans les Réglages.'); return; }

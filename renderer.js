@@ -508,6 +508,7 @@ async function loadVodData() {
   const allowed = new Set(state.vodCats.map((c) => String(c.category_id)));
   const list = await xtreamApi('action=get_vod_streams');
   state.vod = (Array.isArray(list) ? list : []).filter((m) => allowed.has(String(m.category_id)));
+  if (typeof ktvTraktApplyWatched === 'function') ktvTraktApplyWatched();   // marque vus depuis Trakt
 }
 
 async function ensureVod() {
@@ -827,6 +828,9 @@ function renderEpisodes(season) {
     const dur = info.duration || '';
     const meta = document.createElement('div');
     meta.className = 'ep-meta';
+    // Marque vu depuis Trakt (appariement série + saison + épisode).
+    if (typeof ktvTraktEpWatched === 'function' && !isWatched('series:' + ep.id)
+        && ktvTraktEpWatched(curSeries.name, season, ep.episode_num)) setWatched('series:' + ep.id, true);
     const epWatched = isWatched('series:' + ep.id);
     meta.innerHTML = `<span class="ep-t">${escapeHtml(ep.title || ('Épisode ' + ep.episode_num))}${epWatched ? '<span class="ep-watched" title="Vu">✓</span>' : ''}</span><span class="ep-s">${escapeHtml(dur)}</span>`;
     const epProg = resumeProgress('series:' + ep.id);
@@ -2855,6 +2859,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadWatched();
   loadReminders();
   armReminders();
+  if (typeof ktvTraktPullWatched === 'function') setTimeout(() => ktvTraktPullWatched(), 1500);  // Trakt -> vus locaux
   applyTheme(localStorage.getItem('ktv_theme') || 'dark');
   let autoConnect = false;
   try {
