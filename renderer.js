@@ -1462,6 +1462,7 @@ async function startRemuxPlayback(url, title, crumb, resumeKey) {
   enterPlayer(crumb || title, false);
   $('chanSidebar').classList.add('hidden'); $('sidebarToggle').classList.add('hidden');
   $('nowTitle').textContent = title || '—';
+  $('nowEpg').textContent = ''; epgReq++;
   $('recBtn').disabled = true; $('relayBtn').disabled = true; $('scheduleBtn').disabled = true;
   destroyPlayer();
   $('overlay').classList.remove('hidden');
@@ -1493,7 +1494,7 @@ function playMedia(url, title, isLive, crumb, resumeKey) {
   $('chanSidebar').classList.add('hidden');
   $('sidebarToggle').classList.add('hidden');
   $('nowTitle').textContent = title || '—';
-  $('nowEpg').textContent = '';
+  $('nowEpg').textContent = ''; epgReq++;   // invalide un loadEpg live en attente (sinon l'EPG d'une chaîne précédente s'affiche sur le film)
   $('overlay').classList.add('hidden');
   $('recBtn').disabled = true; $('relayBtn').disabled = true; $('scheduleBtn').disabled = true;
   if (state.relaying) stopRelay();
