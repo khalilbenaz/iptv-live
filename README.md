@@ -20,6 +20,17 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.13.3
+- **Synchro « vu » bidirectionnelle avec Trakt** : les films/épisodes déjà vus sur **Trakt** sont marqués vus dans KTV (films par titre+année, épisodes par série+saison+épisode) ; et le marquage manuel/auto dans KTV se synchronise vers Trakt.
+
+### ✨ Nouveautés v1.13.2
+- **Historique** : date affichée sur **toutes** les cartes (repli « Vu récemment » pour les anciennes entrées).
+- **Marquer comme vu** : la bascule manuelle ✓ (films) synchronise avec Trakt (ajout/retrait).
+
+### ✨ Nouveautés v1.13.1
+- **Badge ✓ Vu sur tous les écrans** (films). **Séries** : enchaînement auto épisode **et saison suivante** ; **saison ✓** quand tous ses épisodes sont vus.
+- **Historique** trié par **date de visionnage** + date affichée.
+
 ### ✨ Nouveautés v1.13.0
 - **Marquer comme vu** (films & séries) : contenus terminés (≥ 90 % ou fin) **marqués vus automatiquement** ; badge **✓ Vu** sur les affiches (bascule manuelle au survol) et ✓ sur les épisodes vus.
 
