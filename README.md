@@ -8,7 +8,13 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 > Anciennement « IPTV Live ». Le dépôt et l'application ont été renommés **KTV** (bundle id `com.kba.ktv`).
 
-<!-- Captures d'écran à ajouter dans docs/screenshots/ (01-accueil.png, 02-films.png, 03-guide.png) -->
+## Captures d'écran
+
+| Accueil | Films |
+|---|---|
+| ![Accueil — hero et reprise de lecture](docs/screenshots/01-accueil.png) | ![Films — hero TMDB et tendances](docs/screenshots/02-films.png) |
+| **Séries** | **Guide TV** |
+| ![Séries — hero et tendances](docs/screenshots/03-series.png) | ![Guide TV — EPG et catch-up](docs/screenshots/04-guide.png) |
 
 ## Fonctionnalités
 
