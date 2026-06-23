@@ -12,6 +12,10 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.11.2
+- **Correctif lecture Live TV** : sous Electron 42, le worker `blob:` de mpegts.js était bloqué par la politique de sécurité (CSP) → les chaînes live (et l'aperçu) ne démarraient plus. Ajout de `worker-src 'self' blob:`. (Films & séries, en hls.js, n'étaient pas affectés.)
+- **Aperçu au survol sur l'accueil** : disponible aussi dans la rangée « Reprendre la lecture » (chaînes live).
+
 ### ✨ Nouveautés v1.11.1
 - **Token TMDB retiré de l'app** : les métadonnées passent désormais par un **proxy** (Cloudflare Worker `ktv-tmdb`) qui garde le token côté serveur. Possibilité d'utiliser sa propre clé TMDB v4 dans les réglages (appel direct).
 - **Pointeur de restream durci** (Worker `restream-pointer`) : écriture authentifiée et **limitée aux tunnels `*.trycloudflare.com`** (un secret extrait ne peut plus rediriger vers un hôte arbitraire).

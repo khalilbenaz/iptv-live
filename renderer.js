@@ -1091,6 +1091,8 @@ function emptyTile(t) { const d = document.createElement('div'); d.className = '
 function recentCard(r) {
   const card = document.createElement('div');
   card.className = 'recent-card';
+  // Aperçu au survol (accueil) : seulement pour les chaînes live (flux .ts/mpegts).
+  if (r.type === 'live') card._ch = { stream_id: r.id, name: r.name, stream_icon: r.icon };
   const th = document.createElement('div');
   th.className = 'rc-thumb' + (r.type === 'live' ? ' live' : '');
   if (r.icon) {

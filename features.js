@@ -975,6 +975,8 @@ function initFeatures() {
   const cc = $('catchupClose'); if (cc) cc.onclick = () => $('catchupModal').classList.add('hidden');
   const cm = $('catchupModal'); if (cm) cm.onclick = (e) => { if (e.target.id === 'catchupModal') cm.classList.add('hidden'); };
   ktvSetupAutoRefresh();
+  // Câble l'aperçu au survol sur les conteneurs statiques (Live TV + accueil).
+  if (typeof ktvWireHoverPreview === 'function') ktvWireHoverPreview();
 }
 window.initFeatures = initFeatures;
 
@@ -1074,21 +1076,29 @@ function ktvStartPreview(card) {
   } catch { ktvStopPreview(); }
 }
 
-// Délégation des événements de survol sur la liste + le rail Favoris.
+// Délégation des événements de survol. Zones : liste Live TV, rail Favoris, et
+// l'accueil (#homeRows → « Reprendre la lecture » + favoris). Le sélecteur couvre
+// les cartes chaîne (.chan-card) et les cartes « récent » (.recent-card) ; seules
+// celles portant `_ch` (chaînes live) déclenchent réellement un aperçu.
+const CP_SEL = '.chan-card, .recent-card';
 function ktvWireHoverPreview() {
-  const zones = [document.getElementById('liveGrid'), document.getElementById('liveFavRail')].filter(Boolean);
+  const zones = [
+    document.getElementById('liveGrid'),
+    document.getElementById('liveFavRail'),
+    document.getElementById('homeRows'),
+  ].filter(Boolean);
   zones.forEach((z) => {
     if (z._cpWired) return;
     z._cpWired = true;
     z.addEventListener('mouseover', (e) => {
-      const card = e.target.closest('.chan-card');
-      if (!card || card === ktvPrevCard) return;
+      const card = e.target.closest(CP_SEL);
+      if (!card || !card._ch || card === ktvPrevCard) return;   // sans _ch (VOD) → pas d'aperçu
       clearTimeout(ktvPrevTimer);
       ktvPrevCard = card;
       ktvPrevTimer = setTimeout(() => ktvStartPreview(card), 550);   // anti-rebond
     });
     z.addEventListener('mouseout', (e) => {
-      const card = e.target.closest('.chan-card');
+      const card = e.target.closest(CP_SEL);
       if (!card) return;
       if (e.relatedTarget && card.contains(e.relatedTarget)) return; // déplacement interne
       if (card === ktvPrevCard) ktvStopPreview();
