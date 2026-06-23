@@ -29,8 +29,11 @@ const RELAY_PORT = 4567;
 // Auto-découverte : on publie l'URL publique active vers un Worker Cloudflare,
 // pour que le site web la récupère et bascule automatiquement (URL trycloudflare
 // éphémère → le site n'a plus besoin d'une saisie manuelle à chaque redémarrage).
-const POINTER_URL = 'https://restream-pointer.khalilbenaz.workers.dev/current';
-const POINTER_SECRET = '55f40493adf04737101d9ed2c1247331d950cb04eb4086a8';
+const POINTER_URL = process.env.KTV_POINTER_URL || 'https://restream-pointer.khalilbenaz.workers.dev/current';
+// ⚠️ Secret d'auth du Worker. Surchargeable par env, mais la valeur par défaut reste
+// embarquée dans l'app distribuée : le vrai correctif est côté Worker (auth signée /
+// révocable), ce secret client ne devrait pas suffire à publier le pointeur public.
+const POINTER_SECRET = process.env.KTV_POINTER_SECRET || '55f40493adf04737101d9ed2c1247331d950cb04eb4086a8';
 
 function publishPointer(streamUrl) {
   try {
@@ -48,7 +51,7 @@ function publishPointer(streamUrl) {
     r.write(body); r.end();
   } catch {}
 }
-const relay = { proc: null, server: null, dir: null, url: '', token: '', transcode: false, stopping: false, restarts: 0, restartTimer: null, stableTimer: null };
+const relay = { proc: null, server: null, dir: null, url: '', token: '', transcode: false, lan: false, stopping: false, restarts: 0, restartTimer: null, stableTimer: null };
 const tunnel = { proc: null, url: '' };
 
 let ffmpegPath = require('ffmpeg-static');
@@ -62,8 +65,15 @@ const schedules = new Map();  // id -> { timer, url, name, startAt, durationSec 
 let win;
 
 // Filet de sécurité : ne jamais laisser une erreur tuer le process principal
+// Masque les identifiants Xtream qui apparaissent dans les URLs de flux (ffmpeg
+// loggue souvent l'URL d'entrée sur stderr) avant de remonter une erreur au renderer.
+function redact(s) {
+  return String(s)
+    .replace(/(\/(?:live|movie|series)\/)[^/]+\/[^/]+\//gi, '$1***/***/')
+    .replace(/([?&](?:username|password)=)[^&\s]+/gi, '$1***');
+}
 function notifyError(msg) {
-  try { if (win && !win.isDestroyed()) win.webContents.send('main-error', { msg: String(msg) }); } catch {}
+  try { if (win && !win.isDestroyed()) win.webContents.send('main-error', { msg: redact(String(msg)) }); } catch {}
 }
 process.on('uncaughtException', (e) => { console.error('uncaught:', e); notifyError(e && e.message); });
 process.on('unhandledRejection', (e) => { console.error('unhandled:', e); notifyError(e && e.message); });
@@ -83,10 +93,27 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true,                 // le preload n'utilise que `electron` → compatible
+      webviewTag: false,
+      allowRunningInsecureContent: false
     }
   });
   win.maximize();
+
+  // Durcissement navigation : pas d'ouverture de fenêtre, pas de navigation hors
+  // du fichier local. Les liens externes passent explicitement par open-external.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (ev, url) => {
+    if (!url.startsWith('file://')) ev.preventDefault();
+  });
+
+  // Refuse par défaut toutes les permissions web (caméra, micro, géoloc, notifs…).
+  win.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+
   win.loadFile('index.html');
 }
 
@@ -422,9 +449,17 @@ ipcMain.handle('epg-search', async (e, { q, limit } = {}) => {
   return out.slice(0, cap);
 });
 
+// N'autorise que les URL http(s) (bloque file:, javascript:, etc.). On NE bloque
+// PAS les IP privées : les playlists/flux sur le LAN sont un usage légitime ici.
+function isHttpUrl(u) {
+  try { const p = new URL(String(u)).protocol; return p === 'http:' || p === 'https:'; }
+  catch { return false; }
+}
+
 // Récupère et décompresse une playlist M3U (sources multiples / fusion).
 ipcMain.handle('m3u-fetch', async (e, { url } = {}) => {
   try {
+    if (!isHttpUrl(url)) throw new Error('URL invalide');
     const buf = await fetchBuf(url, BROWSER_UA);
     const text = (/\.gz($|\?)/i.test(url) ? zlib.gunzipSync(buf) : buf).toString('utf8');
     return { ok: true, text };
@@ -433,7 +468,7 @@ ipcMain.handle('m3u-fetch', async (e, { url } = {}) => {
 
 // Ouvre une URL dans le navigateur par défaut (liaison Trakt, etc.).
 ipcMain.handle('open-external', (e, { url } = {}) => {
-  try { if (url) shell.openExternal(url); return { ok: true }; }
+  try { if (!isHttpUrl(url)) return { ok: false, error: 'URL non autorisée' }; shell.openExternal(url); return { ok: true }; }
   catch (err) { return { ok: false, error: String(err) }; }
 });
 
@@ -603,7 +638,7 @@ ipcMain.handle('export-whatsapp', async (e, { file } = {}) => {
         shell.showItemInFolder(out);
         resolve({ ok: true, file: out });
       } else {
-        resolve({ ok: false, error: err.slice(-300) || ('ffmpeg code ' + code) });
+        resolve({ ok: false, error: redact(err.slice(-300)) || ('ffmpeg code ' + code) });
       }
     });
   });
@@ -682,6 +717,7 @@ ipcMain.handle('list-downloads', () => {
 });
 
 ipcMain.handle('download-start', (e, { url, name, ext } = {}) => {
+  if (!isHttpUrl(url)) return { error: 'URL invalide' };
   const id = 'dl' + (++dlSeq);
   const safe = sanitize(name) + '.' + String(ext || 'mp4').replace(/[^a-z0-9]/gi, '').slice(0, 5);
   const file = path.join(downloadsDir(), safe);
@@ -814,7 +850,7 @@ async function startRecordingInternal({ url, name, durationSec }) {
     // durée affichée dans le Finder/QuickTime et partage intégral).
     finalizeRecording(part, file, (finalFile) => {
       if (win && !win.isDestroyed()) {
-        win.webContents.send('record-stopped', { id, file: finalFile, code, startedRelay: wasAuto, error: errBuf.slice(-500) });
+        win.webContents.send('record-stopped', { id, file: finalFile, code, startedRelay: wasAuto, error: redact(errBuf.slice(-500)) });
       }
     });
   });
@@ -1036,13 +1072,18 @@ const LOCAL_URL = `http://127.0.0.1:${RELAY_PORT}/index.m3u8`;
 // Lecture, enregistrement et restream se branchent tous dessus = 1 connexion totale.
 async function startRelayInternal(url, name, opts = {}) {
   if (relay.proc) {
-    // déjà actif (même chaîne) : on réutilise
+    // déjà actif (même chaîne) : on réutilise. Si le restream (opts.lan) a besoin du
+    // LAN et que le serveur n'écoute que sur loopback, on élargit l'écoute à 0.0.0.0.
+    if (opts.lan && !relay.lan) { await relayListen('0.0.0.0'); relay.lan = true; }
     const ip = lanIp();
     return { local: LOCAL_URL, lan: `http://${ip}:${RELAY_PORT}/${relay.token}/index.m3u8`, ip, port: RELAY_PORT, name, reused: true };
   }
   // Token aléatoire par session : exigé pour tout accès non-loopback (LAN + tunnel).
   relay.token = crypto.randomBytes(16).toString('hex');
   relay.transcode = !!opts.transcode;
+  // Bind loopback par défaut (lecture/enregistrement locaux). Le LAN n'est ouvert
+  // que pour le restream (relay-start), qui passe opts.lan.
+  relay.lan = !!opts.lan;
   const dir = path.join(os.tmpdir(), 'iptv-relay');
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
   fs.mkdirSync(dir, { recursive: true });
@@ -1080,15 +1121,7 @@ async function startRelayInternal(url, name, opts = {}) {
   });
 
   // listen + gestion EADDRINUSE (port resté occupé par une instance précédente)
-  await new Promise((resolve, reject) => {
-    const onErr = (e) => { reject(e); };
-    relay.server.once('error', onErr);
-    relay.server.listen(RELAY_PORT, '0.0.0.0', () => {
-      relay.server.removeListener('error', onErr);
-      relay.server.on('error', (e) => notifyError('serveur relais : ' + e.message));
-      resolve();
-    });
-  }).catch((e) => {
+  await relayListen(relay.lan ? '0.0.0.0' : '127.0.0.1').catch((e) => {
     // nettoie le ffmpeg lancé si le serveur n'a pas pu démarrer
     try { relay.proc && relay.proc.kill('SIGKILL'); } catch {}
     relay.proc = null; relay.server = null;
@@ -1116,7 +1149,25 @@ function waitForFile(file, timeoutMs) {
   });
 }
 
-ipcMain.handle('relay-start', (e, { url, name }) => startRelayInternal(url, name));
+// (Ré)met le serveur relais en écoute sur `host`. Si le serveur écoute déjà
+// (réutilisation loopback → élargissement LAN), on ferme puis on ré-écoute.
+function relayListen(host) {
+  return new Promise((resolve, reject) => {
+    const go = () => {
+      const onErr = (e) => reject(e);
+      relay.server.once('error', onErr);
+      relay.server.listen(RELAY_PORT, host, () => {
+        relay.server.removeListener('error', onErr);
+        relay.server.on('error', (e) => notifyError('serveur relais : ' + e.message));
+        resolve();
+      });
+    };
+    if (relay.server.listening) relay.server.close(go); else go();
+  });
+}
+
+// Restream : nécessite l'écoute LAN (opts.lan) pour servir les autres appareils.
+ipcMain.handle('relay-start', (e, { url, name }) => startRelayInternal(url, name, { lan: true }));
 
 // Lecture 4K : on fait transiter la chaîne par le relais en transcodage matériel
 // (HEVC 10 bits → H.264) car le lecteur ne décode pas ce format. Gère le switch.
