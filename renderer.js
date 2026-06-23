@@ -50,6 +50,7 @@ const state = {
   relayLan: '',
   tunnelUrl: '',
   favs: [],         // chaînes favorites {stream_id, name, stream_icon}
+  watched: {},      // contenus vus : { 'movie:id'|'series:epId': timestamp }
   recent: [],       // vu récemment / historique
   reminders: [],    // rappels de programme {id, streamId, name, icon, cat, title, startAt}
   // navigation
@@ -71,6 +72,17 @@ function loadFavs() {
 }
 function saveFavs() { try { localStorage.setItem('iptv_favs', JSON.stringify(state.favs)); } catch {} }
 function isFav(id) { return state.favs.some((f) => f.stream_id == id); }
+/* ---------- Vu / déjà visionné (films & séries) ---------- */
+function loadWatched() { try { state.watched = JSON.parse(localStorage.getItem('iptv_watched') || '{}'); } catch { state.watched = {}; } }
+function saveWatched() { try { localStorage.setItem('iptv_watched', JSON.stringify(state.watched)); } catch {} }
+function isWatched(key) { return !!(key && state.watched && state.watched[key]); }
+function setWatched(key, on) {
+  if (!key) return;
+  if (!state.watched) state.watched = {};
+  if (on) state.watched[key] = Date.now(); else delete state.watched[key];
+  saveWatched();
+}
+function toggleWatched(key) { setWatched(key, !isWatched(key)); }
 function toggleFav(ch) {
   if (isFav(ch.stream_id)) state.favs = state.favs.filter((f) => f.stream_id != ch.stream_id);
   else state.favs.push({ stream_id: ch.stream_id, name: ch.name, stream_icon: ch.stream_icon || '', category_id: ch.category_id });
@@ -563,6 +575,7 @@ function vodShowcaseCard(m, kind, rank) {
     title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
     progress: isSeries ? 0 : resumeProgress('movie:' + m.stream_id),
     remaining: isSeries ? 0 : resumeRemaining('movie:' + m.stream_id),
+    watchedKey: isSeries ? null : 'movie:' + m.stream_id,
     onClick: () => (isSeries ? openSeries(m) : (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m))),
     tmdb: isSeries ? { type: 'tv', title: m.name } : { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
   });
@@ -704,6 +717,7 @@ function renderMovies() {
     frag.appendChild(posterCard({
       title: m.name, cover: m.stream_icon || m.cover, rating: m.rating,
       progress: resumeProgress('movie:' + m.stream_id), remaining: resumeRemaining('movie:' + m.stream_id),
+      watchedKey: 'movie:' + m.stream_id,
       onClick: () => (typeof ktvOpenMovie === 'function' ? ktvOpenMovie(m) : playMovie(m)),
       tmdb: { type: 'movie', title: m.name, year: (typeof yearOf === 'function' ? yearOf(m.name) : '') },
       onDownload: () => { const ext = m.container_extension || 'mp4'; startDownload(vodUrl(m.stream_id, ext), m.name || 'Film', ext); }
@@ -812,7 +826,8 @@ function renderEpisodes(season) {
     const dur = info.duration || '';
     const meta = document.createElement('div');
     meta.className = 'ep-meta';
-    meta.innerHTML = `<span class="ep-t">${escapeHtml(ep.title || ('Épisode ' + ep.episode_num))}</span><span class="ep-s">${escapeHtml(dur)}</span>`;
+    const epWatched = isWatched('series:' + ep.id);
+    meta.innerHTML = `<span class="ep-t">${escapeHtml(ep.title || ('Épisode ' + ep.episode_num))}${epWatched ? '<span class="ep-watched" title="Vu">✓</span>' : ''}</span><span class="ep-s">${escapeHtml(dur)}</span>`;
     const epProg = resumeProgress('series:' + ep.id);
     if (epProg > 0) {
       meta.appendChild(progressBar('ep-prog', epProg));
@@ -872,7 +887,7 @@ function downloadSeries() {
 }
 
 /* ---------- Carte affiche (films/séries) ---------- */
-function posterCard({ title, cover, rating, onClick, onDownload, tmdb, progress, remaining }) {
+function posterCard({ title, cover, rating, onClick, onDownload, tmdb, progress, remaining, watchedKey }) {
   const card = document.createElement('div');
   card.className = 'poster';
   const img = document.createElement('div');
@@ -900,6 +915,13 @@ function posterCard({ title, cover, rating, onClick, onDownload, tmdb, progress,
     img.appendChild(left);
   }
   if (progress && progress > 0) img.appendChild(progressBar('p-prog', progress));
+  if (watchedKey) {
+    const setWb = (wb) => { const on = isWatched(watchedKey); wb.classList.toggle('on', on); wb.textContent = on ? '✓ Vu' : '✓'; wb.title = on ? 'Marquer comme non vu' : 'Marquer comme vu'; card.classList.toggle('is-watched', on); };
+    const wb = document.createElement('button');
+    wb.className = 'p-watch';
+    wb.onclick = (ev) => { ev.stopPropagation(); toggleWatched(watchedKey); setWb(wb); };
+    img.appendChild(wb); setWb(wb);
+  }
   const t = document.createElement('div');
   t.className = 'p-title'; t.textContent = title || '—';
   card.appendChild(img); card.appendChild(t);
@@ -2802,6 +2824,7 @@ function toggleTheme() {
 window.addEventListener('DOMContentLoaded', () => {
   loadFavs();
   loadRecent();
+  loadWatched();
   loadReminders();
   armReminders();
   applyTheme(localStorage.getItem('ktv_theme') || 'dark');
@@ -2826,6 +2849,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   // Enchaînement automatique de l'épisode suivant
   vid.addEventListener('ended', () => {
+    setWatched(state.resumeKey, true);                   // fin = vu (films & séries)
     clearResume(state.resumeKey);
     if (!state.scrobbled && typeof ktvTraktOnFinished === 'function') { state.scrobbled = true; ktvTraktOnFinished(state.nowMeta); }
     const q = state.playQueue;
@@ -2849,10 +2873,11 @@ window.addEventListener('DOMContentLoaded', () => {
     // Marque « vu » sur Trakt à ~90 % (avant le générique). On exige une VRAIE
     // durée connue (isFinite) : sinon `effDuration` retombe sur `seekable.end()`
     // qui croît au chargement et déclenche un faux « vu » au bout de ~2 min (BUG-G).
-    if (state.nowMeta && !state.scrobbled && isFinite(vid.duration) && vid.duration > 0
+    if (!state.scrobbled && isFinite(vid.duration) && vid.duration > 0
         && vid.currentTime / vid.duration >= 0.9) {
       state.scrobbled = true;
-      if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
+      setWatched(state.resumeKey, true);                 // « vu » local (films & séries)
+      if (state.nowMeta && typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
     }
     if (!state.resumeKey) return;
     const now = Date.now();

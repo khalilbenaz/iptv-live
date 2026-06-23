@@ -790,3 +790,12 @@ input[type="datetime-local"], #schDur {
 .gp-tip-t { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
 .gp-tip-h { font-size: 11px; color: var(--accent); margin-bottom: 8px; }
 .gp-tip-d { font-size: 12.5px; line-height: 1.45; color: var(--txt); }
+
+/* Marquer comme vu (films & épisodes) */
+.p-watch { position: absolute; bottom: 8px; right: 8px; z-index: 2; border: none; cursor: pointer;
+  background: rgba(0,0,0,.6); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700;
+  padding: 4px 8px; opacity: 0; transition: opacity .15s, background .15s; }
+.poster:hover .p-watch { opacity: 1; }
+.p-watch.on { opacity: 1; background: rgba(77,208,128,.92); color: #06210f; }
+.poster.is-watched .p-img { outline: 2px solid rgba(77,208,128,.85); outline-offset: -2px; }
+.ep-watched { color: #4dd080; font-weight: 700; margin-left: 6px; }

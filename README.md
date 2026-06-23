@@ -20,6 +20,12 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.13.0
+- **Marquer comme vu** (films & séries) : contenus terminés (≥ 90 % ou fin) **marqués vus automatiquement** ; badge **✓ Vu** sur les affiches (bascule manuelle au survol) et ✓ sur les épisodes vus.
+
+### ✨ Nouveautés v1.12.3
+- **Guide TV** : au survol d'un programme, **popover affichant le synopsis complet** (les blocs le tronquent à 2 lignes).
+
 ### ✨ Nouveautés v1.12.2
 - **Programme en cours fiabilisé** : affiché même quand la grille du fournisseur a un trou (ex. TF1 affichait « En direct » sans programme) — repli automatique sur le XMLTV pour combler le programme du moment.
 
