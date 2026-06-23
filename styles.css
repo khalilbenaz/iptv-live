@@ -1,4 +1,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
+/* Masque les barres de défilement (visibles en permanence sous Windows) tout en
+   conservant le scroll — comportement overlay façon macOS. */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none; }
 :root {
   --bg: #0d0e12;
   --panel: #15171e;

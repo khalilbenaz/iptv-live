@@ -77,6 +77,9 @@ function createWindow() {
     backgroundColor: '#0e0f13',
     autoHideMenuBar: true,
     title: 'KTV',
+    icon: process.platform === 'win32'
+      ? path.join(__dirname, 'build', 'icon.ico')
+      : path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
