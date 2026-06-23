@@ -207,7 +207,8 @@ async function ktvApplySources() {
       else if (src.type === 'xtream') await ktvLoadXtreamSource(src);
     } catch (e) { console.error('source', src.name, e); }
   }
-  try { fillCatSelect($('catSelect'), true); } catch {}
+  // Favoris hors du sélecteur (rail dédié en Live TV) — cohérent avec loadCategories.
+  try { fillCatSelect($('catSelect'), false); } catch {}
   try { fillCatSelect($('guideCat'), false); } catch {}
 }
 
@@ -990,8 +991,10 @@ let ktvPrevTimer = null, ktvPrevPlayer = null, ktvPrevCard = null;
 function ktvPreviewEnabled() {
   if (ktvSetting('hoverPreview') === false) return false;
   // Respecte la limite « 1 connexion » : pas d'aperçu si une connexion fournisseur
-  // est déjà prise (enregistrement / relais en cours).
-  if (window.state && (state.recId || state.relaying)) return false;
+  // est déjà prise — enregistrement, relais/restream, OU une lecture en cours
+  // (state.current/state.player). Sinon l'aperçu ouvrirait un 2e flux et couperait
+  // la lecture active (BUG-B).
+  if (window.state && (state.recId || state.relaying || state.current || state.player)) return false;
   return !!(window.mpegts && mpegts.isSupported());
 }
 
@@ -1041,13 +1044,17 @@ function ktvStartPreview(card) {
       { enableWorker: true, liveBufferLatencyChasing: true, liveSync: true, lazyLoad: false,
         autoCleanupSourceBuffer: true, enableStashBuffer: false }
     );
+    // Assigner AVANT load/play : sinon un ktvStopPreview concurrent (sortie souris
+    // pendant la création) ne verrait pas ce player et le laisserait orphelin (BUG-D).
+    ktvPrevPlayer = p;
     p.attachMediaElement(v);
     v.muted = true;
     p.load();
     p.play().catch(() => {});
     p.on(mpegts.Events.MEDIA_INFO, () => ov.classList.remove('loading'));
     p.on(mpegts.Events.ERROR, () => ktvStopPreview());
-    ktvPrevPlayer = p;
+    // La souris a quitté la carte pendant la création async → on annule.
+    if (!card.isConnected || card !== ktvPrevCard) ktvStopPreview();
   } catch { ktvStopPreview(); }
 }
 

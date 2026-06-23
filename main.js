@@ -93,9 +93,12 @@ function createWindow() {
 // ---------- Vérification de mise à jour (app non signée : on propose, on n'auto-installe pas) ----------
 const REPO = 'khalilbenaz/ktv';
 function cmpVer(a, b) {
-  const pa = String(a).replace(/^v/, '').split('.').map(Number);
-  const pb = String(b).replace(/^v/, '').split('.').map(Number);
-  for (let i = 0; i < 3; i++) { if ((pa[i] || 0) > (pb[i] || 0)) return 1; if ((pa[i] || 0) < (pb[i] || 0)) return -1; }
+  // Retire le préfixe "v" et tout suffixe pré-release ("-beta", "+build") avant de
+  // comparer numériquement segment par segment (gère 1.9 < 1.10, 4 segments, etc.).
+  const parse = (s) => String(s).replace(/^v/i, '').split('+')[0].split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+  const pa = parse(a), pb = parse(b);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) { if ((pa[i] || 0) > (pb[i] || 0)) return 1; if ((pa[i] || 0) < (pb[i] || 0)) return -1; }
   return 0;
 }
 function fetchJson(url) {
@@ -764,10 +767,20 @@ async function startRecordingInternal({ url, name, durationSec }) {
   // puis on le "finalise" en MP4 normal à l'arrêt (cf. finalizeRecording).
   const part = file + '.part';
 
-  // 1 seule connexion fournisseur : on s'assure que le relais local tourne,
-  // puis on enregistre DEPUIS le HLS local (aucune connexion supplémentaire).
+  // 1 seule connexion fournisseur : on s'assure que le relais local tourne SUR LA
+  // BONNE chaîne, puis on enregistre DEPUIS le HLS local (aucune connexion en plus).
   let startedRelay = false;
-  if (!relay.proc) {
+  if (relay.proc && relay.url !== url) {
+    // Le relais sert une AUTRE chaîne (lecture 4K, restream ou autre enregistrement).
+    // Enregistrer DEPUIS LOCAL_URL capturerait la mauvaise chaîne (BUG-A).
+    if (recordings.size > 0) {
+      throw new Error("Un autre enregistrement utilise déjà l'unique connexion fournisseur. Arrête-le d'abord.");
+    }
+    // Personne d'autre ne dépend du relais : on le bascule sur la bonne chaîne.
+    stopRelay();
+    await startRelayInternal(url, name);
+    startedRelay = true;
+  } else if (!relay.proc) {
     await startRelayInternal(url, name);
     startedRelay = true;
   }

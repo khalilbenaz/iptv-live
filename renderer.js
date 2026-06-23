@@ -971,7 +971,11 @@ function renderHomeDynamic(dyn) {
   const heroItem = state.recent[0] || (state.favs[0] && { type: 'live', id: state.favs[0].stream_id, name: state.favs[0].name, icon: state.favs[0].stream_icon });
   if (heroItem) dyn.appendChild(buildHero(heroItem));
   if (state.recent.length) dyn.appendChild(makeRow('Reprendre la lecture', state.recent.map(recentCard)));
-  if (state.favs.length) dyn.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => showView('live')));
+  if (state.favs.length) dyn.appendChild(makeRow('Chaînes favorites', state.favs.map((f) => channelCard(f, false)), () => {
+    showView('live');
+    const rail = $('liveFavRail');
+    if (rail) rail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
 }
 
 function buildHome() {
@@ -1221,7 +1225,7 @@ function destroyPlayer() {
   suppressResume = true;
   const v = $('video');
   if (state.player) { try { state.player.destroy(); } catch {} state.player = null; }
-  try { v.pause(); v.removeAttribute('src'); v.load(); } catch {}
+  try { v.pause(); v.removeAttribute('src'); v.onerror = null; v.load(); } catch {}
 }
 
 // Lecture VOD / épisode (fichier direct)
@@ -1275,7 +1279,7 @@ async function getChannelEpg(channel) {
       .filter((p) => p.title && p.st).sort((a, b) => a.st - b.st));
     if (items.length) {
       const now = Date.now() / 1000;
-      result = { cur: items.find((p) => p.st <= now && now < p.en) || null, next: items.find((p) => p.st > now) || null, src: 'xtream' };
+      result = { cur: items.find((p) => p.st <= now && now < (p.en || p.st + 3600)) || null, next: items.find((p) => p.st > now) || null, src: 'xtream' };
     }
   } catch {}
   if (!result) {
@@ -1306,7 +1310,11 @@ async function play(channel) {
   // Garde "1 connexion" : si un enregistrement tourne, on ne peut pas ouvrir
   // un 2e flux fournisseur.
   if (state.recId) {
-    const sameChannel = state.recChannelName && channel.name === state.recChannelName;
+    // Comparer par stream_id (les noms se répètent entre catégories/sources, BUG-F) ;
+    // repli sur le nom si l'id de la chaîne enregistrée est inconnu.
+    const sameChannel = state.recStreamId != null
+      ? channel.stream_id == state.recStreamId
+      : (state.recChannelName && channel.name === state.recChannelName);
     if (sameChannel && state.recLocal) {
       // On regarde la chaîne en cours d'enregistrement → via le relais local,
       // aucune connexion fournisseur supplémentaire.
@@ -1459,8 +1467,9 @@ function watchRecordingLive(channel) {
 function watchCurrentRecording() {
   if (!state.recId || !state.recLocal) return;
   let ch = null;
-  if (state.current && state.current.name === state.recChannelName) ch = state.current;
-  else if (Array.isArray(state.channels)) ch = state.channels.find((c) => c.name === state.recChannelName);
+  const matches = (c) => c && (state.recStreamId != null ? c.stream_id == state.recStreamId : c.name === state.recChannelName);
+  if (matches(state.current)) ch = state.current;
+  else if (Array.isArray(state.channels)) ch = state.channels.find(matches);
   if (ch) { watchRecordingLive(ch); return; }
   // Fallback minimal : on lit le relais sans objet chaîne complet.
   state.current = null;
@@ -1644,6 +1653,7 @@ function beginRecUI(res, switchPlayer) {
   state.recDuration = Math.floor(Number(res.durationSec) || 0);
   state.recLocal = res.local || '';
   state.recChannelName = res.name || (state.current && state.current.name) || '';
+  state.recStreamId = (state.current && state.current.stream_id) || null;
   if (switchPlayer && res.local && !state.relaying) { destroyPlayer(); playHls(res.local); }
   const btn = $('recBtn');
   btn.classList.add('recording');
@@ -1749,6 +1759,7 @@ function stopRecUI() {
   state.recDuration = 0;
   state.recLocal = '';
   state.recChannelName = '';
+  state.recStreamId = null;
   clearInterval(state.recTimer);
   const btn = $('recBtn');
   btn.classList.remove('recording');
@@ -2646,8 +2657,11 @@ window.addEventListener('DOMContentLoaded', () => {
   vid.addEventListener('timeupdate', () => {
     const dur = effDuration(vid);
     if (!dur) return;
-    // Marque « vu » sur Trakt à ~90 % (avant le générique, que personne ne regarde).
-    if (state.nowMeta && !state.scrobbled && vid.currentTime / dur >= 0.9) {
+    // Marque « vu » sur Trakt à ~90 % (avant le générique). On exige une VRAIE
+    // durée connue (isFinite) : sinon `effDuration` retombe sur `seekable.end()`
+    // qui croît au chargement et déclenche un faux « vu » au bout de ~2 min (BUG-G).
+    if (state.nowMeta && !state.scrobbled && isFinite(vid.duration) && vid.duration > 0
+        && vid.currentTime / vid.duration >= 0.9) {
       state.scrobbled = true;
       if (typeof ktvTraktOnFinished === 'function') ktvTraktOnFinished(state.nowMeta);
     }
