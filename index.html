@@ -36,6 +36,7 @@
       <button class="nav" data-view="movies"><span class="ic">🎬</span> <span class="lbl">Films</span></button>
       <button class="nav" data-view="series"><span class="ic">🎞️</span> <span class="lbl">Séries</span></button>
       <button class="nav" data-view="guide"><span class="ic">🗓️</span> <span class="lbl">Guide TV</span></button>
+      <button class="nav" data-view="sport"><span class="ic">⚽</span> <span class="lbl">Sport</span></button>
       <button class="nav" data-view="history"><span class="ic">🕘</span> <span class="lbl">Historique</span></button>
       <button class="nav" data-view="recordings"><span class="ic">⏺️</span> <span class="lbl">Enregistrements</span></button>
       <div class="spacer"></div>
@@ -183,6 +184,18 @@
         </section>
 
         <!-- PLAYER -->
+        <section class="view" id="view-sport">
+          <div class="view-panel">
+            <h2 class="view-h">⚽ Sport — Match Center</h2>
+            <div class="sc-searchbar">
+              <input id="scQuery" type="text" placeholder="Rechercher un match (ex: Haiti Morocco) ou coller une URL Sofascore…" />
+              <button id="scSearchBtn" class="btn">Rechercher</button>
+            </div>
+            <div id="scResults" class="sc-results"></div>
+            <div id="scDetail" class="sc-detail"></div>
+          </div>
+        </section>
+
         <section class="view" id="view-player">
           <div class="player-top">
             <button id="playerBack" class="icon-btn">‹ Retour</button>
@@ -193,6 +206,7 @@
               <button id="btnSubs" class="icon-btn hidden" title="Sous-titres (c)">💬</button>
               <button id="btnPip" class="icon-btn hidden" title="Picture-in-Picture (p)">🗗</button>
               <button id="btnStats" class="icon-btn hidden" title="Statistiques réseau">📊</button>
+              <button id="btnMatch" class="icon-btn hidden" title="Match Center (Sofascore)">⚽</button>
               <button id="btnFs" class="icon-btn" title="Plein écran (f)">⛶</button>
               <button id="sidebarToggle" class="icon-btn hidden" title="Afficher/masquer les chaînes">☰ Chaînes</button>
             </div>
@@ -436,5 +450,6 @@
   <script src="node_modules/mpegts.js/dist/mpegts.js"></script>
   <script src="renderer.js"></script>
   <script src="features.js"></script>
+  <script src="matchcenter.js"></script>
 </body>
 </html>

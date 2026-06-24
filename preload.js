@@ -46,5 +46,12 @@ contextBridge.exposeInMainWorld('api', {
   xmltvStatus: () => ipcRenderer.invoke('xmltv-status'),
   xmltvConfig: (cfg) => ipcRenderer.invoke('xmltv-config', cfg),
   m3uFetch: (url) => ipcRenderer.invoke('m3u-fetch', { url }),
-  openExternal: (url) => ipcRenderer.invoke('open-external', { url })
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
+  // Match Center (Sofascore)
+  sofaSearch: (q) => ipcRenderer.invoke('sofa-search', { q }),
+  sofaMatch: (ref) => ipcRenderer.invoke('sofa-match', { ref }),
+  sofaStats: (ref) => ipcRenderer.invoke('sofa-stats', { ref }),
+  sofaLineups: (ref) => ipcRenderer.invoke('sofa-lineups', { ref }),
+  sofaTeamForm: (team) => ipcRenderer.invoke('sofa-teamform', { team }),
+  onUpdateProgress: (cb) => ipcRenderer.on('update-progress', (e, p) => cb(p))
 });

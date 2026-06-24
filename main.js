@@ -176,6 +176,92 @@ function releasePlatforms(rel) {
 
   return both;
 }
+// Télécharge `url` vers `dest` en flux, avec suivi de progression (0..1).
+function downloadFile(url, dest, onProgress) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'KTV-Updater' } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume(); return downloadFile(res.headers.location, dest, onProgress).then(resolve, reject);
+      }
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('HTTP ' + res.statusCode)); }
+      const total = Number(res.headers['content-length']) || 0;
+      let done = 0;
+      const out = fs.createWriteStream(dest);
+      res.on('data', (c) => { done += c.length; if (total && onProgress) onProgress(done / total); });
+      res.pipe(out);
+      out.on('finish', () => out.close(() => resolve(dest)));
+      out.on('error', reject);
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+// Télécharge la release, extrait le .zip et remplace l'app en place, puis relance.
+// Builds = .zip portables (pas de Squirrel) → on swappe via un script détaché.
+async function autoInstallUpdate(rel, asset) {
+  if (!app.isPackaged) throw new Error('auto-install indisponible en mode développement');
+  if (!asset) throw new Error('aucun fichier pour cette plateforme');
+  const tmp = path.join(os.tmpdir(), 'ktv-update');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp, { recursive: true });
+  const zipPath = path.join(tmp, asset.name);
+
+  if (win && !win.isDestroyed()) win.webContents.send('update-progress', { phase: 'download', value: 0 });
+  await downloadFile(asset.browser_download_url, zipPath, (v) => {
+    if (win && !win.isDestroyed()) win.webContents.send('update-progress', { phase: 'download', value: v });
+  });
+  if (win && !win.isDestroyed()) win.webContents.send('update-progress', { phase: 'install', value: 1 });
+
+  const extract = path.join(tmp, 'extract');
+  fs.mkdirSync(extract, { recursive: true });
+
+  if (process.platform === 'darwin') {
+    // ditto préserve la signature/les forks des .app dans les zip macOS.
+    execFileSync('ditto', ['-x', '-k', zipPath, extract]);
+    const appName = fs.readdirSync(extract).find((n) => n.endsWith('.app'));
+    if (!appName) throw new Error('.app introuvable dans l’archive');
+    const newApp = path.join(extract, appName);
+    // App courante : /Applications/KTV.app (3 niveaux au-dessus de l’exécutable).
+    const curApp = path.resolve(path.dirname(app.getPath('exe')), '..', '..');
+    const sh = path.join(tmp, 'swap.sh');
+    fs.writeFileSync(sh, [
+      '#!/bin/bash',
+      'sleep 1',
+      `rm -rf "${curApp}.bak"`,
+      `mv "${curApp}" "${curApp}.bak" 2>/dev/null`,
+      `cp -R "${newApp}" "${curApp}" || mv "${curApp}.bak" "${curApp}"`,
+      `rm -rf "${curApp}.bak"`,
+      `xattr -dr com.apple.quarantine "${curApp}" 2>/dev/null`,
+      `open "${curApp}"`,
+      ''
+    ].join('\n'));
+    fs.chmodSync(sh, 0o755);
+    spawn('/bin/bash', [sh], { detached: true, stdio: 'ignore' }).unref();
+    setTimeout(() => app.quit(), 400);
+    return;
+  }
+
+  // Windows : zip portable → extraction PowerShell + swap du dossier via .bat détaché.
+  execFileSync('powershell', ['-NoProfile', '-Command',
+    `Expand-Archive -Path '${zipPath}' -DestinationPath '${extract}' -Force`]);
+  // Le dossier app est soit la racine extraite, soit l’unique sous-dossier.
+  let srcDir = extract;
+  const entries = fs.readdirSync(extract);
+  if (!entries.includes('KTV.exe') && entries.length === 1) srcDir = path.join(extract, entries[0]);
+  const curDir = path.dirname(app.getPath('exe'));
+  const exe = path.join(curDir, 'KTV.exe');
+  const bat = path.join(tmp, 'swap.bat');
+  fs.writeFileSync(bat, [
+    '@echo off',
+    'timeout /t 2 /nobreak >nul',
+    `xcopy /E /I /Y "${srcDir}\\*" "${curDir}" >nul`,
+    `start "" "${exe}"`,
+    ''
+  ].join('\r\n'));
+  spawn('cmd', ['/c', bat], { detached: true, stdio: 'ignore' }).unref();
+  setTimeout(() => app.quit(), 400);
+}
+
 async function checkForUpdates(silent) {
   try {
     const rel = await fetchJson(`https://api.github.com/repos/${REPO}/releases/latest`);
@@ -202,14 +288,30 @@ async function checkForUpdates(silent) {
     const asset = (rel.assets || []).find((a) => isMac
       ? /mac|macos|osx|darwin|\.dmg$/i.test(a.name)
       : /win|windows|\.exe$/i.test(a.name));
+    // En prod avec un asset compatible : installation automatique. Sinon, page de release.
+    const canAuto = app.isPackaged && !!asset;
+    const buttons = canAuto
+      ? ['Installer maintenant', 'Plus tard']
+      : ['Télécharger', 'Plus tard'];
     const r = await dialog.showMessageBox(win, {
       type: 'info',
       message: `Nouvelle version disponible : ${latest}`,
-      detail: `Tu utilises la ${app.getVersion()}.\n\n${(rel.body || '').slice(0, 400)}`,
-      buttons: ['Télécharger', 'Plus tard'],
-      defaultId: 0, cancelId: 1,
+      detail: `Tu utilises la ${app.getVersion()}.\n\n${(rel.body || '').slice(0, 400)}`
+        + (canAuto ? '\n\nKTV va télécharger et installer la mise à jour, puis redémarrer.' : ''),
+      buttons, defaultId: 0, cancelId: 1,
     });
-    if (r.response === 0) {
+    if (r.response !== 0) return;
+    if (canAuto) {
+      try {
+        await autoInstallUpdate(rel, asset);
+      } catch (e) {
+        if (win) dialog.showMessageBox(win, {
+          type: 'warning', message: 'Installation automatique impossible',
+          detail: e.message + '\n\nOuverture de la page de téléchargement.', buttons: ['OK'],
+        });
+        shell.openExternal(asset ? asset.browser_download_url : (rel.html_url || `https://github.com/${REPO}/releases/latest`));
+      }
+    } else {
       shell.openExternal(asset ? asset.browser_download_url : (rel.html_url || `https://github.com/${REPO}/releases/latest`));
     }
   } catch (e) {
@@ -1415,3 +1517,12 @@ ipcMain.handle('tunnel-start', async () => {
 });
 
 ipcMain.handle('tunnel-stop', () => { stopTunnel(); return { ok: true }; });
+
+// --- Match Center (Sofascore) ----------------------------------------------
+const sofascore = require('./sofascore');
+ipcMain.handle('sofa-search',   (e, { q } = {})    => sofascore.search(q));
+ipcMain.handle('sofa-match',    (e, { ref } = {})  => sofascore.getMatch(ref));
+ipcMain.handle('sofa-stats',    (e, { ref } = {})  => sofascore.getStats(ref));
+ipcMain.handle('sofa-lineups',  (e, { ref } = {})  => sofascore.getLineups(ref));
+ipcMain.handle('sofa-teamform', (e, { team } = {}) => sofascore.getTeamForm(team));
+app.on('before-quit', () => { try { sofascore.dispose(); } catch (_) {} });

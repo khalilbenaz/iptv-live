@@ -1643,6 +1643,8 @@ async function loadEpg(channel) {
   if (e.next) txt += `${txt ? '   ·   ' : ''}⏭ ${epgTime(e.next.st)} ${e.next.title}`;
   if (e.src === 'xmltv' && txt) txt += '   · (guide externe)';
   el.textContent = txt;
+  // Indice pour le Match Center : titre du programme en cours (souvent "Équipe A - Équipe B").
+  window._scEpgTitle = e.cur ? (e.cur.title || '') : '';
 }
 
 // Lecture LIVE
@@ -1683,6 +1685,11 @@ async function play(channel) {
   enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
   $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
   $('btnFav').classList.remove('hidden'); updateFavBtn();   // favori dispo dans le lecteur (live)
+  // ⚽ Match Center : visible uniquement sur les chaînes sportives
+  if (typeof ktvUpdateMatchBtn === 'function') {
+    const catName = (state.categories.find((c) => String(c.category_id) === String(channel.category_id)) || {}).category_name || '';
+    ktvUpdateMatchBtn(channel, catName);
+  }
   $('overlay').classList.add('hidden');
   loadEpg(channel);
   $('recBtn').disabled = false;
@@ -1794,6 +1801,11 @@ function watchRecordingLive(channel) {
   enterPlayer(channel.name || ('Chaîne ' + channel.stream_id), true);
   $('nowTitle').textContent = channel.name || ('Chaîne ' + channel.stream_id);
   $('btnFav').classList.remove('hidden'); updateFavBtn();   // favori dispo dans le lecteur (live)
+  // ⚽ Match Center : visible uniquement sur les chaînes sportives
+  if (typeof ktvUpdateMatchBtn === 'function') {
+    const catName = (state.categories.find((c) => String(c.category_id) === String(channel.category_id)) || {}).category_name || '';
+    ktvUpdateMatchBtn(channel, catName);
+  }
   $('overlay').classList.add('hidden');
   loadEpg(channel);
   $('recBtn').disabled = false;
@@ -2924,6 +2936,7 @@ function resetPlayerTools() {
   $('btnAudio').classList.add('hidden');
   $('btnSubs').classList.add('hidden');
   $('btnFav').classList.add('hidden');     // réaffiché par play() pour les chaînes live
+  const bm = $('btnMatch'); if (bm) bm.classList.add('hidden');  // ⚽ : seulement sur le sport
 }
 
 // Met à jour le bouton favori du lecteur selon la chaîne en cours.
