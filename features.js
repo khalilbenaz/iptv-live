@@ -918,6 +918,16 @@ function ktvBuildSettingsExtras() {
   sec1.appendChild(prevCb);
   host.appendChild(sec1);
 
+  /* --- Sport / Match Center --- */
+  const secSport = document.createElement('div'); secSport.className = 'settings-section';
+  secSport.innerHTML = '<h3>⚽ Sport — Match Center</h3><p class="hint">Ajoute un onglet « Sport » pour suivre les scores en direct, buts, cartons (données Sofascore via le navigateur intégré).</p>';
+  const spLbl = document.createElement('label'); spLbl.className = 'cat-check';
+  const spChk = document.createElement('input'); spChk.type = 'checkbox'; spChk.checked = s.sportEnabled === true;
+  spChk.onchange = () => { ktvSetSetting('sportEnabled', spChk.checked); if (typeof ktvApplySportSetting === 'function') ktvApplySportSetting(); ktvToast(spChk.checked ? 'Menu Sport activé' : 'Menu Sport désactivé'); };
+  spLbl.appendChild(spChk); spLbl.appendChild(document.createTextNode(' Activer le menu Sport'));
+  secSport.appendChild(spLbl);
+  host.appendChild(secSport);
+
   /* --- Diagnostic / débit --- */
   const sec2 = document.createElement('div'); sec2.className = 'settings-section';
   sec2.innerHTML = '<h3>📶 Diagnostic du fournisseur</h3><p class="hint">Teste la latence de l’API, le débit du flux et l’état de l’abonnement.</p>';

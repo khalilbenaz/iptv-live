@@ -20,6 +20,11 @@ Lecteur **Xtream Codes** pour **macOS (Apple Silicon)** et **Windows (x64)** —
 
 ## Fonctionnalités
 
+### ✨ Nouveautés v1.16.0 — Match Center (Sport) & mise à jour automatique
+- **Onglet « ⚽ Sport » (optionnel)** : suivi des matchs **en direct** (données Sofascore via le navigateur intégré, sans clé API). Recherche par nom (alias FR→EN, ex. « maroc » → Morocco) ou URL Sofascore collée ; **score live, infos** (tournoi, stade, arbitre) et **faits du match** (buts + passeurs, cartons, remplacements, décisions VAR).
+- **Activation dans les Réglages** : le menu Sport n'apparaît que si l'option **« Activer le menu Sport »** est cochée (Réglages → ⚽ Sport). Désactivé par défaut.
+- **Mise à jour automatique** : « Installer maintenant » télécharge la nouvelle version (barre de progression), l'**installe en place** et **redémarre** KTV — plus besoin de réinstaller manuellement (macOS & Windows ; repli sur la page de release si besoin).
+
 ### ✨ Nouveautés v1.15.4 — chargement catalogue résilient
 - **Catalogue films/séries auto-réparant** : un hoquet de connexion au fournisseur ne laisse plus la page sur « Aucun film » jusqu'au redémarrage — le catalogue est automatiquement retenté au passage suivant (le cache vide n'est plus mémorisé).
 - **Timeout réseau (30 s)** sur les appels API : une requête qui pend (fournisseur lent/HS) échoue proprement au lieu de figer le chargement.
